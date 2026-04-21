@@ -1,0 +1,89 @@
+@Auth_HostAddress = http://localhost:5132
+
+########################################
+### REGISTER (LOCAL USER)
+########################################
+
+POST {{Auth_HostAddress}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "Password123!"
+}
+
+###
+
+########################################
+### LOGIN (LOCAL USER)
+########################################
+
+POST {{Auth_HostAddress}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "Password123!"
+}
+
+###
+
+########################################
+### REFRESH TOKEN
+########################################
+
+POST {{Auth_HostAddress}}/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "kSZ7mYm+50qcDCED3oyXmQ=="
+}
+
+###
+
+########################################
+### GOOGLE LOGIN
+########################################
+
+POST {{Auth_HostAddress}}/auth/google
+Content-Type: application/json
+
+{
+  "idToken": "PASTE_GOOGLE_ID_TOKEN_HERE"
+}
+
+###
+
+########################################
+### GET CURRENT USER (PROTECTED)
+########################################
+
+GET {{Auth_HostAddress}}/auth/me
+Authorization: Bearer PASTE_ACCESS_TOKEN_HERE
+
+###
+
+########################################
+### INVALID LOGIN TEST (ERROR HANDLING)
+########################################
+
+POST {{Auth_HostAddress}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "wrong@example.com",
+  "password": "wrongpassword"
+}
+
+###
+
+########################################
+### INVALID REFRESH TOKEN TEST
+########################################
+
+POST {{Auth_HostAddress}}/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "invalid-token"
+}
