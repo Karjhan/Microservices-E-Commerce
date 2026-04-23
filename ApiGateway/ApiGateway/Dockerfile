@@ -8,23 +8,21 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 # Copy solution
-COPY ["Auth.sln", "./"]
+COPY ["ApiGateway.sln", "./"]
 
 # Copy project files
-COPY ["Auth/Auth.csproj", "Auth/"]
-COPY ["Application/Application.csproj", "Application/"]
-COPY ["Domain/Domain.csproj", "Domain/"]
-COPY ["Infrastructure/Infrastructure.csproj", "Infrastructure/"]
+COPY ["ApiGateway/ApiGateway.csproj", "ApiGateway/"]
 COPY ["Contracts/Contracts.csproj", "Contracts/"]
+COPY ["Infrastructure/Infrastructure.csproj", "Infrastructure/"]
 COPY ["IntegrationTests/IntegrationTests.csproj", "IntegrationTests/"]
-COPY ["UnitTests/UnitTests.csproj", "UnitTests/"]
 
+# Restore
 RUN dotnet restore
 
-# Copy everything else
+# Copy everything
 COPY . .
 
-WORKDIR "/src/Auth"
+WORKDIR /src/ApiGateway
 RUN dotnet build -c Release -o /app/build
 
 # -------- PUBLISH --------
@@ -36,4 +34,4 @@ FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
 
-ENTRYPOINT ["dotnet", "Auth.dll"]
+ENTRYPOINT ["dotnet", "ApiGateway.dll"]
