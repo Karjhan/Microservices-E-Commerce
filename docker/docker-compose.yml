@@ -3,6 +3,23 @@ version: "3.9"
 name: ecommerce-infra
 
 services:
+  api-gateway:
+    build:
+      context: ../ApiGateway
+      dockerfile: ApiGateway/Dockerfile
+    container_name: api-gateway
+    restart: unless-stopped
+    depends_on:
+      - auth
+      - jaeger
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      Services__Auth: http://auth:8080
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+    ports:
+      - "${GATEWAY_PORT}:8080"
+
   auth:
     build:
       context: ../Auth

@@ -16,6 +16,8 @@ COPY ["Application/Application.csproj", "Application/"]
 COPY ["Domain/Domain.csproj", "Domain/"]
 COPY ["Infrastructure/Infrastructure.csproj", "Infrastructure/"]
 COPY ["Contracts/Contracts.csproj", "Contracts/"]
+COPY ["IntegrationTests/IntegrationTests.csproj", "IntegrationTests/"]
+COPY ["UnitTests/UnitTests.csproj", "UnitTests/"]
 
 RUN dotnet restore
 
