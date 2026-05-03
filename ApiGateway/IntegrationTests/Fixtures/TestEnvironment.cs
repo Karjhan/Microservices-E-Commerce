@@ -9,7 +9,10 @@ public class TestEnvironment : IAsyncLifetime
 
     public PostgresFixture Postgres { get; private set; } = null!;
     public RabbitMqFixture RabbitMq { get; private set; } = null!;
+    public RedisFixture Redis { get; private set; } = null!;
+    public MinioFixture Minio { get; private set; } = null!;
     public AuthFixture Auth { get; private set; } = null!;
+    public CatalogFixture Catalog { get; private set; } = null!;
 
     public async Task InitializeAsync()
     {
@@ -25,13 +28,25 @@ public class TestEnvironment : IAsyncLifetime
         RabbitMq = new RabbitMqFixture(Network);
         await RabbitMq.InitializeAsync();
 
+        Redis = new RedisFixture(Network);
+        await Redis.InitializeAsync();
+
+        Minio = new MinioFixture(Network);
+        await Minio.InitializeAsync();
+
         Auth = new AuthFixture(Network);
         await Auth.InitializeAsync();
+
+        Catalog = new CatalogFixture(Network);
+        await Catalog.InitializeAsync();
     }
 
     public async Task DisposeAsync()
     {
+        await Catalog.DisposeAsync();
         await Auth.DisposeAsync();
+        await Minio.DisposeAsync();
+        await Redis.DisposeAsync();
         await RabbitMq.DisposeAsync();
         await Postgres.DisposeAsync();
         await Network.DeleteAsync();

@@ -8,10 +8,12 @@ namespace IntegrationTests.Factories;
 public class GatewayFactory : WebApplicationFactory<Program>
 {
     private readonly string _authUrl;
-
-    public GatewayFactory(string authUrl)
+    
+    private readonly string _catalogUrl;
+    public GatewayFactory(string authUrl, string catalogUrl)
     {
         _authUrl = authUrl;
+        _catalogUrl = catalogUrl;
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -22,7 +24,9 @@ public class GatewayFactory : WebApplicationFactory<Program>
         {
             cfg.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["ReverseProxy:Clusters:auth-cluster:Destinations:auth:Address"] = _authUrl
+                ["ReverseProxy:Clusters:auth-cluster:Destinations:auth:Address"] = _authUrl,
+
+                ["ReverseProxy:Clusters:catalog-cluster:Destinations:catalog:Address"] = _catalogUrl
             });
         });
     }

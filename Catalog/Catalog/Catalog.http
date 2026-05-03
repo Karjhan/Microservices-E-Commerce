@@ -1,0 +1,120 @@
+@host = http://localhost:5129
+@productId = 7de9eda6-2c8c-4bb8-bf26-2a7346865100
+@attributeId = 834ec5f2-6c9c-4db7-8a8e-2c6109490fc0
+@relationId = 40d7aea4-0427-4624-a677-457913b1a241
+@relatedProductId = 66959dea-307e-4f09-8d9c-8d4c352f038a
+
+###############################################
+### CREATE PRODUCT
+###############################################
+
+POST {{host}}/products
+Content-Type: application/json
+
+{
+  "name": "3D Printed Vase",
+  "shortDescription": "Modern decorative vase",
+  "longDescription": "A high-quality 3D printed vase suitable for modern interiors.",
+  "price": 25.50,
+  "categoryId": "11111111-1111-1111-1111-111111111111",
+  "tags": ["vase", "decor", "modern"],
+  "supportedMaterials": ["PLA", "PETG"],
+  "compatiblePrinters": ["FDM"]
+}
+
+###############################################
+### UPDATE PRODUCT
+###############################################
+
+PUT {{host}}/products/{{productId}}
+Content-Type: application/json
+
+{
+  "name": "3D Printed Vase PRO",
+  "shortDescription": "Updated version",
+  "longDescription": "Improved durability and finish.",
+  "price": 30.00,
+  "tags": ["vase", "premium"],
+  "supportedMaterials": ["PLA", "ABS"],
+  "compatiblePrinters": ["FDM", "SLA"]
+}
+
+###############################################
+### GET PRODUCT BY ID
+###############################################
+
+GET {{host}}/products/{{productId}}
+
+###############################################
+### GET PRODUCTS (FILTERED)
+###############################################
+
+GET {{host}}/products?categoryId=11111111-1111-1111-1111-111111111111&minPrice=10&maxPrice=100&tags=vase&tags=decor&material=PLA&printerType=FDM&search=vase&page=1&pageSize=10
+
+###############################################
+### DELETE PRODUCT
+###############################################
+
+DELETE {{host}}/products/{{productId}}
+
+###############################################
+### UPLOAD PRODUCT IMAGE
+###############################################
+
+POST {{host}}/products/{{productId}}/images
+Content-Type: multipart/form-data; boundary=boundary
+
+--boundary
+Content-Disposition: form-data; name="file"; filename="vase.jpg"
+Content-Type: image/jpeg
+
+< ./vase.jpg
+--boundary
+Content-Disposition: form-data; name="isPrimary"
+
+true
+--boundary--
+
+###############################################
+### DELETE PRODUCT IMAGE
+###############################################
+
+DELETE {{host}}/products/{{productId}}/images/{{attributeId}}
+
+###############################################
+### ATTRIBUTES
+###############################################
+
+### ADD ATTRIBUTE
+POST {{host}}/products/{{productId}}/attributes
+Content-Type: application/json
+
+{
+  "key": "Color",
+  "value": "White"
+}
+
+### GET ATTRIBUTES
+GET {{host}}/products/{{productId}}/attributes
+
+### DELETE ATTRIBUTE
+DELETE {{host}}/products/{{productId}}/attributes/{{attributeId}}
+
+###############################################
+### RELATIONS
+###############################################
+
+### ADD RELATION
+POST {{host}}/products/{{productId}}/relations
+Content-Type: application/json
+
+{
+  "relatedProductId": "{{relatedProductId}}",
+  "type": "similar"
+}
+
+### GET RELATIONS
+GET {{host}}/products/{{productId}}/relations
+
+### DELETE RELATION
+DELETE {{host}}/products/{{productId}}/relations/{{relationId}}

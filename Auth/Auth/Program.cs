@@ -19,6 +19,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using OpenTelemetry.Logs;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
@@ -106,6 +107,20 @@ if (!isTesting)
             return await factory.CreateConnectionAsync();
         });
 }
+
+builder.Logging.AddOpenTelemetry(options =>
+{
+    options.IncludeScopes = true;
+    options.IncludeFormattedMessage = true;
+    options.ParseStateValues = true;
+
+    options.AddOtlpExporter(opt =>
+    {
+        opt.Endpoint = new Uri(
+            builder.Configuration["OtelExportUri"]
+            ?? "http://jaeger:4317");
+    });
+});
 var app = builder.Build();
 
 app.UseGlobalExceptionHandling();
@@ -116,6 +131,8 @@ app.Use(async (HttpContext context, RequestDelegate next) =>
     await next(context);
 });
 
+app.UseMiddleware<ExceptionMiddleware>();
+app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<RequestLoggingMiddleware>();
 
 app.UseAuthentication();

@@ -1,6 +1,7 @@
 using ApiGateway.Extensions;
 using ApiGateway.Middleware;
 using Infrastructure.DependencyInjection;
+using OpenTelemetry.Logs;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -16,9 +17,22 @@ builder.Host.UseSerilog((ctx, lc) =>
 builder.Services.AddGatewayServices(builder.Configuration);
 builder.Services.AddInfrastructure(builder.Configuration);
 
+builder.Logging.AddOpenTelemetry(options =>
+{
+    options.IncludeScopes = true;
+    options.IncludeFormattedMessage = true;
+    options.ParseStateValues = true;
+
+    options.AddOtlpExporter(opt =>
+    {
+        opt.Endpoint = new Uri(
+            builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]
+            ?? "http://jaeger:4317");
+    });
+});
+
 var app = builder.Build();
 
-// Middleware order is CRITICAL
 app.UseMiddleware<ExceptionMiddleware>();
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<RequestLoggingMiddleware>();
