@@ -12,7 +12,7 @@ public class AuthFlowTests : IClassFixture<TestEnvironment>
 
     public AuthFlowTests(TestEnvironment env)
     {
-        var factory = new GatewayFactory(env.Auth.BaseUrl);
+        var factory = new GatewayFactory(env.Auth.BaseUrl, env.Catalog.BaseUrl);
         _client = factory.CreateClient(new WebApplicationFactoryClientOptions
         {
             BaseAddress = new Uri("http://localhost")

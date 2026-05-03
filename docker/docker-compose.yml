@@ -11,14 +11,34 @@ services:
     restart: unless-stopped
     depends_on:
       - auth
+      - catalog
       - jaeger
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
       Services__Auth: http://auth:8080
+      Services__Catalog: http://catalog:8080
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
     ports:
       - "${GATEWAY_PORT}:8080"
+
+  catalog:
+    build:
+      context: ../Catalog
+      dockerfile: Catalog/Dockerfile
+    container_name: catalog
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - rabbitmq
+      - minio
+      - redis
+      - jaeger
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+    ports:
+      - "${CATALOG_PORT}:8080"      
 
   auth:
     build:
