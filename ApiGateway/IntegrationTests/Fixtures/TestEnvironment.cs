@@ -11,8 +11,12 @@ public class TestEnvironment : IAsyncLifetime
     public RabbitMqFixture RabbitMq { get; private set; } = null!;
     public RedisFixture Redis { get; private set; } = null!;
     public MinioFixture Minio { get; private set; } = null!;
+    public QdrantFixture Qdrant { get; private set; } = null!;
+    public Neo4jFixture Neo4j { get; private set; } = null!;
+    public OllamaFixture Ollama { get; private set; } = null!;
     public AuthFixture Auth { get; private set; } = null!;
     public CatalogFixture Catalog { get; private set; } = null!;
+    public GraphRagFixture GraphRag { get; private set; } = null!;
 
     public async Task InitializeAsync()
     {
@@ -34,17 +38,33 @@ public class TestEnvironment : IAsyncLifetime
         Minio = new MinioFixture(Network);
         await Minio.InitializeAsync();
 
+        Qdrant = new QdrantFixture(Network);
+        await Qdrant.InitializeAsync();
+
+        Neo4j = new Neo4jFixture(Network);
+        await Neo4j.InitializeAsync();
+
+        Ollama = new OllamaFixture(Network);
+        await Ollama.InitializeAsync();
+
         Auth = new AuthFixture(Network);
         await Auth.InitializeAsync();
 
         Catalog = new CatalogFixture(Network);
         await Catalog.InitializeAsync();
+
+        GraphRag = new GraphRagFixture(Network);
+        await GraphRag.InitializeAsync();
     }
 
     public async Task DisposeAsync()
     {
+        await GraphRag.DisposeAsync();
         await Catalog.DisposeAsync();
         await Auth.DisposeAsync();
+        await Ollama.DisposeAsync();
+        await Neo4j.DisposeAsync();
+        await Qdrant.DisposeAsync();
         await Minio.DisposeAsync();
         await Redis.DisposeAsync();
         await RabbitMq.DisposeAsync();
