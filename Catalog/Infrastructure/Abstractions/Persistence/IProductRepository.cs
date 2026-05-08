@@ -18,6 +18,7 @@ public interface IProductRepository
     Task<IReadOnlyList<ProductRelation>> GetRelationsAsync(Guid productId, CancellationToken ct);
     Task AddRelationAsync(ProductRelation relation, CancellationToken ct);
     Task DeleteRelationAsync(Guid productId, Guid relationId, CancellationToken ct);
+    Task<IReadOnlyList<ProductRelation>> RemoveIncomingRelationsAsync(Guid relatedProductId, CancellationToken ct);
 
     Task DeleteAsync(Product product, CancellationToken ct);
     Task SaveChangesAsync(CancellationToken ct);

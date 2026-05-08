@@ -28,6 +28,18 @@ public class ProductRepository : IProductRepository
             .AsSplitQuery()
             .FirstOrDefaultAsync(x => x.Id == id, ct);
     }
+    
+    public async Task<IReadOnlyList<ProductRelation>> RemoveIncomingRelationsAsync(Guid relatedProductId, CancellationToken ct)
+    {
+        var relations = await _context.ProductRelations
+            .Where(x => x.RelatedProductId == relatedProductId)
+            .ToListAsync(ct);
+
+        if (relations.Count > 0)
+            _context.ProductRelations.RemoveRange(relations);
+
+        return relations;
+    }
 
     public async Task<List<Product>> GetFilteredAsync(ProductFilter filter, CancellationToken ct)
     {
