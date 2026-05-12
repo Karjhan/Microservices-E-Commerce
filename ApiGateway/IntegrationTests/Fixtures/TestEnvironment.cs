@@ -16,6 +16,7 @@ public class TestEnvironment : IAsyncLifetime
     public OllamaFixture Ollama { get; private set; } = null!;
     public AuthFixture Auth { get; private set; } = null!;
     public CatalogFixture Catalog { get; private set; } = null!;
+    public PaymentsFixture Payments { get; private set; } = null!;
     public GraphRagFixture GraphRag { get; private set; } = null!;
 
     public async Task InitializeAsync()
@@ -52,6 +53,9 @@ public class TestEnvironment : IAsyncLifetime
 
         Catalog = new CatalogFixture(Network);
         await Catalog.InitializeAsync();
+        
+        Payments = new PaymentsFixture(Network);
+        await Payments.InitializeAsync();
 
         GraphRag = new GraphRagFixture(Network);
         await GraphRag.InitializeAsync();
@@ -61,6 +65,7 @@ public class TestEnvironment : IAsyncLifetime
     {
         await GraphRag.DisposeAsync();
         await Catalog.DisposeAsync();
+        await Payments.DisposeAsync();
         await Auth.DisposeAsync();
         await Ollama.DisposeAsync();
         await Neo4j.DisposeAsync();

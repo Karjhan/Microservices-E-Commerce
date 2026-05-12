@@ -1,6 +1,50 @@
 @Payments_HostAddress = http://localhost:5072
+@paymentId = 7a0e7ea8-9744-45aa-a979-5d9c56753b1b
+### Create Payment
+# paymentToken = Stripe PaymentMethod ID from Stripe.js (pm_card_visa in test mode)
+POST {{Payments_HostAddress}}/payments
+Content-Type: application/json
 
-GET {{Payments_HostAddress}}/weatherforecast/
+{
+  "orderId": "d290f1ee-6c54-4b01-90e6-d701748f0851",
+  "userId": "a290f1ee-6c54-4b01-90e6-d701748f0852",
+  "amount": 49.99,
+  "currency": "EUR",
+  "method": "CreditCard",
+  "idempotencyKey": "order-d290f1ee-payment-001",
+  "paymentToken": "pm_card_visa"
+}
+
+### Process Payment
+POST {{Payments_HostAddress}}/payments/{{paymentId}}/process
 Accept: application/json
 
-###
+### Refund Payment (full)
+POST {{Payments_HostAddress}}/payments/{{paymentId}}/refund
+Content-Type: application/json
+
+{}
+
+### Refund Payment (partial)
+POST {{Payments_HostAddress}}/payments/{{paymentId}}/refund
+Content-Type: application/json
+
+{
+  "amount": 10.00
+}
+
+### Get Payment by ID
+GET {{Payments_HostAddress}}/payments/{{paymentId}}
+Accept: application/json
+
+### Get Payment by Order ID
+GET {{Payments_HostAddress}}/payments/by-order/d290f1ee-6c54-4b01-90e6-d701748f0851
+Accept: application/json
+
+### Get Payments (filtered)
+GET {{Payments_HostAddress}}/payments?page=1&pageSize=10
+Accept: application/json
+
+### Health Check
+GET {{Payments_HostAddress}}/health
+Accept: application/json

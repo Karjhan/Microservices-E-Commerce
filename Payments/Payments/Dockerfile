@@ -1,23 +1,38 @@
 ﻿FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
-USER $APP_UID
 WORKDIR /app
 EXPOSE 8080
-EXPOSE 8081
 
+# -------- BUILD --------
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
-ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
+
+# Copy solution
+COPY ["Payments.sln", "./"]
+
+# Copy project files
 COPY ["Payments/Payments.csproj", "Payments/"]
-RUN dotnet restore "Payments/Payments.csproj"
+COPY ["Application/Application.csproj", "Application/"]
+COPY ["Domain/Domain.csproj", "Domain/"]
+COPY ["Infrastructure/Infrastructure.csproj", "Infrastructure/"]
+COPY ["Contracts/Contracts.csproj", "Contracts/"]
+COPY ["IntegrationTests/IntegrationTests.csproj", "IntegrationTests/"]
+COPY ["UnitTests/UnitTests.csproj", "UnitTests/"]
+
+RUN dotnet restore
+
+# Copy everything else
 COPY . .
+
 WORKDIR "/src/Payments"
-RUN dotnet build "./Payments.csproj" -c $BUILD_CONFIGURATION -o /app/build
+RUN dotnet build -c Release -o /app/build
 
+# -------- PUBLISH --------
 FROM build AS publish
-ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "./Payments.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+RUN dotnet publish -c Release -o /app/publish /p:UseAppHost=false
 
+# -------- FINAL --------
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
+
 ENTRYPOINT ["dotnet", "Payments.dll"]
