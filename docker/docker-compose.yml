@@ -13,6 +13,7 @@ services:
       - auth
       - catalog
       - payments
+      - orders
       - graphrag-api
       - jaeger
     environment:
@@ -21,6 +22,7 @@ services:
       Services__Auth: http://auth:8080
       Services__Catalog: http://catalog:8080
       Services__Payments: http://payments:8080
+      Services__Orders: http://orders:8080
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
     ports:
       - "${GATEWAY_PORT}:8080"
@@ -68,6 +70,31 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
     ports:
       - "${PAYMENTS_PORT}:8080"
+
+  orders:
+    build:
+      context: ../Orders
+      dockerfile: Orders/Dockerfile
+    container_name: orders
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - rabbitmq
+      - redis
+      - jaeger
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      Database__ConnectionString: "Host=postgres;Port=5432;Database=orders;Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
+      RabbitMQ__Host: rabbitmq
+      RabbitMQ__Port: 5672
+      RabbitMQ__Username: ${RABBITMQ_USER}
+      RabbitMQ__Password: ${RABBITMQ_PASSWORD}
+      RabbitMQ__VirtualHost: /
+      Redis__ConnectionString: "redis:6379"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+    ports:
+      - "${ORDERS_PORT}:8080"
 
   auth:
     build:

@@ -1,0 +1,91 @@
+@Orders_HostAddress = http://localhost:5073
+
+@userId = a7375a92-b714-4720-ab56-6790372e7bb7
+@orderId = db315476-7b83-44e3-aaeb-9e69388c7597
+
+### Create Order
+POST {{Orders_HostAddress}}/orders
+Content-Type: application/json
+
+{
+  "userId": "{{userId}}",
+  "currency": "EUR",
+  "notes": "Please handle with care",
+  "shippingAddress": {
+    "street": "123 Main Street",
+    "city": "Bucharest",
+    "state": "Ilfov",
+    "country": "Romania",
+    "zipCode": "010101",
+    "fullName": "John Doe",
+    "phone": "+40712345678"
+  },
+  "items": [
+    {
+      "productId": "1708aa1c-d853-4a67-a837-b073d7e42432",
+      "productName": "Self-Watering Planter with Drainage Reservoir",
+      "unitPrice": 3.99,
+      "quantity": 1,
+      "currency": "USD",
+      "productImageUrl": null
+    },
+    {
+      "productId": "3292d5b3-cece-4a0c-97a9-95c905a434c6",
+      "productName": "Flexi Rex Dinosaur",
+      "unitPrice": 1.99,
+      "quantity": 2,
+      "currency": "USD",
+      "productImageUrl": null
+    }
+  ]
+}
+
+### Get Order by ID
+GET {{Orders_HostAddress}}/orders/{{orderId}}
+Accept: application/json
+
+### Get Orders (all, admin)
+GET {{Orders_HostAddress}}/orders?page=1&pageSize=10
+Accept: application/json
+
+### Get Orders (filtered by user)
+GET {{Orders_HostAddress}}/orders?userId={{userId}}&page=1&pageSize=10
+Accept: application/json
+
+### Get Orders (filtered by status)
+GET {{Orders_HostAddress}}/orders?status=PendingPayment&page=1&pageSize=10
+Accept: application/json
+
+### Get Orders (filtered by date range)
+GET {{Orders_HostAddress}}/orders?fromDate=2026-01-01&toDate=2026-12-31&page=1&pageSize=20
+Accept: application/json
+
+### Get My Orders (by user ID)
+GET {{Orders_HostAddress}}/orders/user/{{userId}}
+Accept: application/json
+
+### Cancel Order
+POST {{Orders_HostAddress}}/orders/{{orderId}}/cancel
+Content-Type: application/json
+
+{
+  "reason": "Customer changed their mind"
+}
+
+### Update Shipping Address
+PUT {{Orders_HostAddress}}/orders/{{orderId}}/shipping-address
+Content-Type: application/json
+
+{
+  "street": "456 New Avenue",
+  "city": "Cluj-Napoca",
+  "state": "Cluj",
+  "country": "Romania",
+  "zipCode": "400001",
+  "fullName": "John Doe",
+  "phone": "+40712345678"
+}
+
+### Health Check
+GET {{Orders_HostAddress}}/health
+Accept: application/json
