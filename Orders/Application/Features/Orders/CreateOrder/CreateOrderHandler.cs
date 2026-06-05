@@ -64,7 +64,10 @@ public class CreateOrderHandler(
             TotalAmount = order.TotalAmount,
             Currency = order.Currency,
             ItemCount = order.Items.Count,
-            CreatedAt = order.CreatedAt
+            CreatedAt = order.CreatedAt,
+            Items = order.Items
+                .Select(i => new OrderCreatedLineItem(i.ProductId, i.Quantity))
+                .ToList()
         }, "order.created");
 
         return order.Id;

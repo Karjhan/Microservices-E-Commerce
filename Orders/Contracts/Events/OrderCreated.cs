@@ -8,4 +8,8 @@ public class OrderCreated
     public string Currency { get; init; } = default!;
     public int ItemCount { get; init; }
     public DateTime CreatedAt { get; init; }
+
+    public List<OrderCreatedLineItem> Items { get; init; } = new();
 }
+
+public record OrderCreatedLineItem(Guid ProductId, int Quantity);

@@ -126,6 +126,49 @@ public class CreateOrderHandlerTests
     }
 
     [Fact]
+    public async Task Should_Publish_OrderCreated_With_Line_Items()
+    {
+        // Arrange
+        var productA = Guid.NewGuid();
+        var productB = Guid.NewGuid();
+
+        var command = new CreateOrderCommand(
+            Guid.NewGuid(),
+            "EUR",
+            null,
+            new ShippingAddressRequest("St", "City", "State", "Country", "00000", null, null),
+            new List<OrderItemRequest>
+            {
+                new(productA, "Headphones", 49.99m, 2, "EUR", null),
+                new(productB, "Cable",       9.99m, 3, "EUR", null)
+            });
+
+        _repo.Setup(x => x.AddAsync(It.IsAny<Order>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        _repo.Setup(x => x.AddItemAsync(It.IsAny<OrderItem>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        _repo.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        _cache.Setup(x => x.RemoveByPrefixAsync(It.IsAny<string>()))
+            .Returns(Task.CompletedTask);
+
+        OrderCreated? publishedEvent = null;
+        _publisher
+            .Setup(x => x.PublishAsync(It.IsAny<OrderCreated>(), "order.created"))
+            .Callback<OrderCreated, string>((evt, _) => publishedEvent = evt)
+            .Returns(Task.CompletedTask);
+
+        // Act
+        await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        publishedEvent.Should().NotBeNull();
+        publishedEvent!.Items.Should().HaveCount(2);
+        publishedEvent.Items.Should().Contain(i => i.ProductId == productA && i.Quantity == 2);
+        publishedEvent.Items.Should().Contain(i => i.ProductId == productB && i.Quantity == 3);
+    }
+
+    [Fact]
     public async Task Should_Invalidate_Cache()
     {
         // Arrange

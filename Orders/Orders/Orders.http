@@ -1,7 +1,7 @@
 @Orders_HostAddress = http://localhost:5073
 
 @userId = a7375a92-b714-4720-ab56-6790372e7bb7
-@orderId = db315476-7b83-44e3-aaeb-9e69388c7597
+@orderId = fccd78a5-7c50-41e4-89b6-433324f11760
 
 ### Create Order
 POST {{Orders_HostAddress}}/orders
@@ -25,7 +25,7 @@ Content-Type: application/json
       "productId": "1708aa1c-d853-4a67-a837-b073d7e42432",
       "productName": "Self-Watering Planter with Drainage Reservoir",
       "unitPrice": 3.99,
-      "quantity": 1,
+      "quantity": 32,
       "currency": "USD",
       "productImageUrl": null
     },

@@ -1,0 +1,44 @@
+@host = http://localhost:5000
+@productId = 1708aa1c-d853-4a67-a837-b073d7e42432
+
+###############################################
+### GET INVENTORY BY PRODUCT ID
+###############################################
+
+GET {{host}}/inventory/{{productId}}
+
+###############################################
+### LIST INVENTORY (ALL)
+###############################################
+
+GET {{host}}/inventory?page=1&pageSize=20
+
+###############################################
+### LIST INVENTORY (DEPLETED ONLY)
+###############################################
+
+GET {{host}}/inventory?depletedOnly=true&page=1&pageSize=20
+
+###############################################
+### ADJUST INVENTORY (ADD STOCK)
+###############################################
+
+POST {{host}}/inventory/{{productId}}/adjustments
+Content-Type: application/json
+
+{
+  "delta": 50,
+  "reason": "Initial stock received from supplier"
+}
+
+###############################################
+### ADJUST INVENTORY (REMOVE STOCK)
+###############################################
+
+POST {{host}}/inventory/{{productId}}/adjustments
+Content-Type: application/json
+
+{
+  "delta": -5,
+  "reason": "Damaged goods removed from warehouse"
+}
