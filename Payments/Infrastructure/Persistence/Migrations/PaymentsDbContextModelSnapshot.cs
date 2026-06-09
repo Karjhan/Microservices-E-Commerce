@@ -69,6 +69,10 @@ namespace Infrastructure.Persistence.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<string>("RecipientEmail")
+                        .HasMaxLength(329)
+                        .HasColumnType("character varying(329)");
+
                     b.Property<decimal>("RefundedAmount")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");

@@ -32,7 +32,8 @@ public class PaymentFailedHandler(
             OrderId = order.Id,
             UserId = order.UserId,
             Reason = request.Reason,
-            FailedAt = DateTime.UtcNow
+            FailedAt = DateTime.UtcNow,
+            RecipientEmail =  order.RecipientEmail
         }, "order.payment_failed");
     }
 }

@@ -1,3 +1,4 @@
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Yarp.ReverseProxy.Transforms;
 using Yarp.ReverseProxy.Transforms.Builder;
@@ -14,11 +15,20 @@ public class AddUserClaimsTransform : ITransformProvider
 
             if (user.Identity?.IsAuthenticated == true)
             {
-                var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                    ?? user.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
 
                 if (!string.IsNullOrEmpty(userId))
                 {
                     ctx.ProxyRequest.Headers.TryAddWithoutValidation("X-User-Id", userId);
+                }
+
+                var email = user.FindFirst(ClaimTypes.Email)?.Value
+                    ?? user.FindFirst(JwtRegisteredClaimNames.Email)?.Value;
+
+                if (!string.IsNullOrEmpty(email))
+                {
+                    ctx.ProxyRequest.Headers.TryAddWithoutValidation("X-User-Email", email);
                 }
             }
 

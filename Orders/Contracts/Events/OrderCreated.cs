@@ -10,6 +10,10 @@ public class OrderCreated
     public DateTime CreatedAt { get; init; }
 
     public List<OrderCreatedLineItem> Items { get; init; } = new();
+    
+    public string? RecipientEmail { get; init; }
+    
+    public string? LineSummary { get; init; }
 }
 
 public record OrderCreatedLineItem(Guid ProductId, int Quantity);

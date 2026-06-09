@@ -35,7 +35,8 @@ public class ProcessPaymentHandler(
                 OrderId = payment.OrderId,
                 UserId = payment.UserId,
                 Reason = "Payment expired before processing",
-                CancelledAt = DateTime.UtcNow
+                CancelledAt = DateTime.UtcNow,
+                RecipientEmail = payment.RecipientEmail
             }, "payment.cancelled");
 
             throw new InvalidPaymentStateException("Payment has expired and was cancelled.");
@@ -87,7 +88,8 @@ public class ProcessPaymentHandler(
                 Amount = payment.Amount,
                 Currency = payment.Currency,
                 ProviderPaymentId = result.ProviderPaymentId!,
-                CompletedAt = payment.CompletedAt!.Value
+                CompletedAt = payment.CompletedAt!.Value,
+                RecipientEmail =  payment.RecipientEmail
             }, "payment.completed");
         }
         else
@@ -111,7 +113,8 @@ public class ProcessPaymentHandler(
                 Amount = payment.Amount,
                 Currency = payment.Currency,
                 Reason = result.FailureReason!,
-                FailedAt = DateTime.UtcNow
+                FailedAt = DateTime.UtcNow,
+                RecipientEmail = payment.RecipientEmail
             }, "payment.failed");
         }
     }

@@ -6,4 +6,5 @@ public class OrderPaymentFailed
     public Guid UserId { get; init; }
     public string Reason { get; init; } = default!;
     public DateTime FailedAt { get; init; }
+    public string? RecipientEmail {get; init;}
 }

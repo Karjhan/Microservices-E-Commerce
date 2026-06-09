@@ -23,6 +23,7 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
         builder.HasIndex(x => x.IdempotencyKey).IsUnique();
 
         builder.Property(x => x.PaymentToken).HasMaxLength(300);
+        builder.Property(x => x.RecipientEmail).HasMaxLength(329);
 
         builder.Property(x => x.ProviderPaymentId).HasMaxLength(200);
         builder.Property(x => x.FailureReason).HasMaxLength(1000);

@@ -10,5 +10,6 @@ public record CreatePaymentCommand(
     string Currency,
     PaymentMethod Method,
     string IdempotencyKey,
-    string PaymentToken
+    string PaymentToken,
+    string? RecipientEmail = null
 ) : IRequest<Guid>;

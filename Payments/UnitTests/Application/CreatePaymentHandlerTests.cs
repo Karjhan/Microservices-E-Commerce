@@ -88,6 +88,45 @@ public class CreatePaymentHandlerTests
         await Assert.ThrowsAsync<DuplicatePaymentException>(
             () => _handler.Handle(command, CancellationToken.None));
     }
+    
+    [Fact]
+    public async Task Should_Store_RecipientEmail_On_Payment()
+    {
+        // Arrange
+        Payment? captured = null;
+        var command = new CreatePaymentCommand(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            100m,
+            "EUR",
+            PaymentMethod.CreditCard,
+            "idem-key-email",
+            "pm_test_token",
+            RecipientEmail: "buyer@example.com");
+
+        _repo.Setup(x => x.GetByIdempotencyKeyAsync("idem-key-email", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Payment?)null);
+
+        _repo.Setup(x => x.AddAsync(It.IsAny<Payment>(), It.IsAny<CancellationToken>()))
+            .Callback<Payment, CancellationToken>((payment, _) => captured = payment)
+            .Returns(Task.CompletedTask);
+
+        _repo.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        _cache.Setup(x => x.RemoveByPrefixAsync("payments:"))
+            .Returns(Task.CompletedTask);
+
+        _publisher.Setup(x => x.PublishAsync(It.IsAny<object>(), It.IsAny<string>()))
+            .Returns(Task.CompletedTask);
+
+        // Act
+        await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        captured.Should().NotBeNull();
+        captured!.RecipientEmail.Should().Be("buyer@example.com");
+    }
 
     [Fact]
     public async Task Should_Publish_PaymentCreated_Event()

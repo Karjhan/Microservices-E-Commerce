@@ -103,7 +103,8 @@ public class CreateOrderHandlerTests
             new List<OrderItemRequest>
             {
                 new(Guid.NewGuid(), "Product", 25m, 1, "USD", null)
-            });
+            },
+            RecipientEmail:"customer@example.com");
 
         _repo.Setup(x => x.AddAsync(It.IsAny<Order>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
@@ -141,7 +142,8 @@ public class CreateOrderHandlerTests
             {
                 new(productA, "Headphones", 49.99m, 2, "EUR", null),
                 new(productB, "Cable",       9.99m, 3, "EUR", null)
-            });
+            },
+            RecipientEmail:"customer@example.com");
 
         _repo.Setup(x => x.AddAsync(It.IsAny<Order>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);

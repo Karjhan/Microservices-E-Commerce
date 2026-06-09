@@ -66,7 +66,8 @@ public class RefundPaymentHandler(
             OriginalAmount = payment.Amount,
             Currency = payment.Currency,
             IsFullRefund = payment.Status == PaymentStatus.Refunded,
-            RefundedAt = DateTime.UtcNow
+            RefundedAt = DateTime.UtcNow,
+            RecipientEmail =  payment.RecipientEmail
         }, "payment.refunded");
     }
 }

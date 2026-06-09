@@ -8,7 +8,8 @@ public record CreateOrderCommand(
     string Currency,
     string? Notes,
     ShippingAddressRequest ShippingAddress,
-    List<OrderItemRequest> Items
+    List<OrderItemRequest> Items,
+    string? RecipientEmail = null
 ) : IRequest<Guid>;
 
 public record ShippingAddressRequest(

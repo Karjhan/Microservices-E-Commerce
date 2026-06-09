@@ -14,4 +14,6 @@ public class PaymentRefunded
     public bool IsFullRefund { get; init; }
 
     public DateTime RefundedAt { get; init; }
+    
+    public string? RecipientEmail {get; init;}
 }

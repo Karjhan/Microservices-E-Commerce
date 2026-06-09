@@ -18,6 +18,7 @@ public class CreateOrderTests : IntegrationTestBase
             UserId = Guid.NewGuid(),
             Currency = "EUR",
             Notes = "Test order",
+            RecipientEmail = "test@example.com",
             ShippingAddress = new
             {
                 Street = "123 Main St",

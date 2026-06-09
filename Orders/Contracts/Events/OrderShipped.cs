@@ -5,4 +5,5 @@ public class OrderShipped
     public Guid OrderId { get; init; }
     public Guid UserId { get; init; }
     public DateTime ShippedAt { get; init; }
+    public string? RecipientEmail {get; init;}
 }

@@ -30,7 +30,8 @@ public class CancelOrderHandler(
             OrderId = order.Id,
             UserId = order.UserId,
             Reason = request.Reason,
-            CancelledAt = order.CancelledAt!.Value
+            CancelledAt = order.CancelledAt!.Value,
+            RecipientEmail = order.RecipientEmail,
         }, "order.cancelled");
     }
 }

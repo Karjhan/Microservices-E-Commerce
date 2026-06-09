@@ -12,4 +12,6 @@ public class PaymentCompleted
     public string ProviderPaymentId { get; init; } = default!;
 
     public DateTime CompletedAt { get; init; }
+    
+    public string? RecipientEmail {get; init;}
 }

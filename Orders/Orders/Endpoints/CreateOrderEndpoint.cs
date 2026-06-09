@@ -1,5 +1,6 @@
 using Application.Features.Orders.CreateOrder;
 using MediatR;
+using Orders.Http;
 
 namespace Orders.Endpoints;
 
@@ -9,6 +10,7 @@ public static class CreateOrderEndpoint
     {
         app.MapPost("/", async (
             CreateOrderRequest request,
+            HttpContext httpContext,
             IMediator mediator,
             CancellationToken ct) =>
         {
@@ -30,7 +32,8 @@ public static class CreateOrderEndpoint
                     i.UnitPrice,
                     i.Quantity,
                     i.Currency,
-                    i.ProductImageUrl)).ToList());
+                    i.ProductImageUrl)).ToList(),
+                RecipientEmail:RecipientEmailResolver.Resolve(httpContext, request.RecipientEmail));
 
             var orderId = await mediator.Send(command, ct);
 
@@ -46,7 +49,8 @@ public record CreateOrderRequest(
     string Currency,
     string? Notes,
     ShippingAddressDto ShippingAddress,
-    List<OrderItemDto> Items);
+    List<OrderItemDto> Items,
+    string? RecipientEmail = null);
 
 public record ShippingAddressDto(
     string Street,

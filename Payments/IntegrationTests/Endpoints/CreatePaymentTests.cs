@@ -20,7 +20,8 @@ public class CreatePaymentTests : IntegrationTestBase
             Currency = "EUR",
             Method = 0, // CreditCard
             IdempotencyKey = Guid.NewGuid().ToString(),
-            PaymentToken = "pm_test_token"
+            PaymentToken = "pm_test_token",
+            RecipientEmail = "test@example.com",
         };
 
         // Act

@@ -31,6 +31,8 @@ public class Payment
     public DateTime? UpdatedAt { get; private set; }
     public DateTime? CompletedAt { get; private set; }
     public DateTime ExpiresAt { get; private set; }
+    
+    public string? RecipientEmail { get; private set; }
 
     private Payment() { }
 
@@ -65,6 +67,11 @@ public class Payment
 
         Status = PaymentStatus.Processing;
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void SetRecipientEmail(string? email)
+    {
+        RecipientEmail = email;
     }
 
     public void MarkCompleted(string providerPaymentId)

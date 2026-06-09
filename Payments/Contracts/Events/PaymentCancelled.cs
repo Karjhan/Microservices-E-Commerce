@@ -9,4 +9,6 @@ public class PaymentCancelled
     public string Reason { get; init; } = default!;
 
     public DateTime CancelledAt { get; init; }
+    
+    public string? RecipientEmail {get; init;}
 }

@@ -16,6 +16,7 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(x => x.Currency).HasMaxLength(3).IsRequired();
         builder.Property(x => x.Notes).HasMaxLength(500);
         builder.Property(x => x.CancellationReason).HasMaxLength(500);
+        builder.Property(x => x.RecipientEmail).HasMaxLength(320);
 
         builder.HasOne(x => x.ShippingAddress)
             .WithOne(x => x.Order)

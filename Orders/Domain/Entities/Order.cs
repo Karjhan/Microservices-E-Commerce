@@ -30,6 +30,8 @@ public class Order
 
     public string? CancellationReason { get; private set; }
 
+    public string? RecipientEmail {get; private set;}
+    
     private Order() { }
 
     public Order(
@@ -66,6 +68,11 @@ public class Order
         Status = OrderStatus.Paid;
         PaidAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void SetRecipientEmail(string? email)
+    {
+        RecipientEmail = email;
     }
 
     public void MarkProcessing()

@@ -36,6 +36,7 @@ public class CreateOrderHandler(
             request.ShippingAddress.Phone);
 
         order.SetShippingAddress(address);
+        order.SetRecipientEmail(request.RecipientEmail);
 
         foreach (var item in request.Items)
         {
@@ -67,7 +68,9 @@ public class CreateOrderHandler(
             CreatedAt = order.CreatedAt,
             Items = order.Items
                 .Select(i => new OrderCreatedLineItem(i.ProductId, i.Quantity))
-                .ToList()
+                .ToList(),
+            RecipientEmail =  order.RecipientEmail,
+            LineSummary = string.Join(", ", order.Items.Select(i => $"{i.Quantity}x {i.ProductName}"))
         }, "order.created");
 
         return order.Id;

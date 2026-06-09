@@ -16,6 +16,7 @@ services:
       - orders
       - inventory
       - graphrag-api
+      - notifications-api
       - jaeger
     environment:
       ASPNETCORE_ENVIRONMENT: Development
@@ -162,6 +163,7 @@ services:
       - "${POSTGRES_PORT}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d
 
   pgadmin:
     image: dpage/pgadmin4:latest
@@ -319,6 +321,70 @@ services:
       - neo4j
       - rabbitmq
       - ollama
+      - jaeger
+    entrypoint: ["bash", "/app/docker/entrypoint.sh"]
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: mailhog
+    restart: unless-stopped
+    ports:
+      - "${MAILHOG_SMTP_PORT}:1025"
+      - "${MAILHOG_UI_PORT}:8025"
+
+  notifications-api:
+    build:
+      context: ../Notifications
+      dockerfile: docker/Dockerfile
+    container_name: notifications-api
+    restart: unless-stopped
+    environment:
+      SERVICE_MODE: api
+      DATABASE_URL: postgresql+asyncpg://postgres:${POSTGRES_PASSWORD}@postgres:5432/notifications
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+      RABBITMQ_QUEUE: notifications.events
+      SMTP_HOST: mailhog
+      SMTP_PORT: 1025
+      SMTP_FROM: noreply@ecommerce.local
+      SMTP_USE_TLS: "false"
+      NOTIFICATIONS_OPERATOR_EMAILS: ${NOTIFICATIONS_OPERATOR_EMAILS}
+      OTEL_ENDPOINT: http://jaeger:4317
+      SERVICE_NAME: notifications-service
+      OTEL_ENABLED: "true"
+      LOG_LEVEL: ${NOTIFICATIONS_LOG_LEVEL}
+    ports:
+      - "${NOTIFICATIONS_API_PORT}:8200"
+    depends_on:
+      - postgres
+      - rabbitmq
+      - mailhog
+      - jaeger
+    entrypoint: ["bash", "/app/docker/entrypoint.sh"]
+
+  notifications-worker:
+    build:
+      context: ../Notifications
+      dockerfile: docker/Dockerfile
+    container_name: notifications-worker
+    restart: unless-stopped
+    environment:
+      SERVICE_MODE: worker
+      DATABASE_URL: postgresql+asyncpg://postgres:${POSTGRES_PASSWORD}@postgres:5432/notifications
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+      RABBITMQ_QUEUE: notifications.events
+      SMTP_HOST: mailhog
+      SMTP_PORT: 1025
+      SMTP_FROM: noreply@ecommerce.local
+      SMTP_USE_TLS: "false"
+      NOTIFICATIONS_OPERATOR_EMAILS: ${NOTIFICATIONS_OPERATOR_EMAILS}
+      OTEL_ENDPOINT: http://jaeger:4317
+      SERVICE_NAME: notifications-worker
+      OTEL_ENABLED: "true"
+      LOG_LEVEL: ${NOTIFICATIONS_LOG_LEVEL}
+    depends_on:
+      - postgres
+      - rabbitmq
+      - mailhog
       - jaeger
     entrypoint: ["bash", "/app/docker/entrypoint.sh"]
 

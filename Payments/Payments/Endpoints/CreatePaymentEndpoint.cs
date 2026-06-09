@@ -10,6 +10,7 @@ public static class CreatePaymentEndpoint
     {
         app.MapPost("/", async (
             CreatePaymentRequest request,
+            HttpContext httpContext,
             IMediator mediator,
             CancellationToken ct) =>
         {
@@ -20,7 +21,8 @@ public static class CreatePaymentEndpoint
                 request.Currency,
                 request.Method,
                 request.IdempotencyKey,
-                request.PaymentToken);
+                request.PaymentToken,
+                RecipientEmailResolver.Resolve(httpContext, request.RecipientEmail));
 
             var paymentId = await mediator.Send(command, ct);
 
@@ -38,5 +40,6 @@ public record CreatePaymentRequest(
     string Currency,
     PaymentMethod Method,
     string IdempotencyKey,
-    string PaymentToken
+    string PaymentToken,
+    string? RecipientEmail = null
 );

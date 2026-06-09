@@ -29,6 +29,8 @@ public class CreatePaymentHandler(
             request.Method,
             request.IdempotencyKey,
             request.PaymentToken);
+        
+        payment.SetRecipientEmail(request.RecipientEmail);
 
         await repo.AddAsync(payment, ct);
         await repo.SaveChangesAsync(ct);

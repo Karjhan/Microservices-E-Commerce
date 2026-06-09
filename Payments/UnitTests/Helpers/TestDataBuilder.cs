@@ -7,9 +7,9 @@ public static class TestDataBuilder
 {
     public static Payment CreatePayment(
         PaymentMethod method = PaymentMethod.CreditCard,
-        string? paymentToken = "pm_test_token")
+        string? paymentToken = "pm_test_token", string? recipientEmail = "customer@example.com")
     {
-        return new Payment(
+        var payment = new Payment(
             Guid.NewGuid(),
             Guid.NewGuid(),
             100m,
@@ -17,6 +17,8 @@ public static class TestDataBuilder
             method,
             Guid.NewGuid().ToString(),
             paymentToken);
+        payment.SetRecipientEmail(recipientEmail);
+        return payment;
     }
 
     public static Payment CreateCompletedPayment()

@@ -6,4 +6,5 @@ public class OrderCancelled
     public Guid UserId { get; init; }
     public string Reason { get; init; } = default!;
     public DateTime CancelledAt { get; init; }
+    public string? RecipientEmail {get; init;}
 }

@@ -69,7 +69,8 @@ public class ExpiredPaymentJob : BackgroundService
                 OrderId = payment.OrderId,
                 UserId = payment.UserId,
                 Reason = "Payment expired (auto-cancelled)",
-                CancelledAt = DateTime.UtcNow
+                CancelledAt = DateTime.UtcNow,
+                RecipientEmail = payment.RecipientEmail
             }, "payment.cancelled");
 
             await cache.RemoveAsync($"payment:{payment.Id}");
