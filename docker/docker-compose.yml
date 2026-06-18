@@ -17,6 +17,7 @@ services:
       - inventory
       - graphrag-api
       - notifications-api
+      - pdf-worker
       - jaeger
     environment:
       ASPNETCORE_ENVIRONMENT: Development
@@ -26,6 +27,7 @@ services:
       Services__Payments: http://payments:8080
       Services__Orders: http://orders:8080
       Services__Inventory: http://inventory:8080
+      Services__PdfWorker: http://pdf-worker:8080
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
     ports:
       - "${GATEWAY_PORT}:8080"
@@ -125,6 +127,36 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
     ports:
       - "${INVENTORY_PORT}:8080"
+
+  pdf-worker:
+    build:
+      context: ..
+      dockerfile: PdfWorker/PdfWorker/Dockerfile
+    container_name: pdf-worker
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - rabbitmq
+      - minio
+      - orders
+      - jaeger
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      Database__ConnectionString: "Host=postgres;Port=5432;Database=pdfworker;Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
+      RabbitMQ__Host: rabbitmq
+      RabbitMQ__Port: 5672
+      RabbitMQ__Username: ${RABBITMQ_USER}
+      RabbitMQ__Password: ${RABBITMQ_PASSWORD}
+      RabbitMQ__VirtualHost: /
+      Minio__Endpoint: http://minio:9000
+      Minio__AccessKey: ${MINIO_ROOT_USER}
+      Minio__SecretKey: ${MINIO_ROOT_PASSWORD}
+      Minio__Bucket: documents
+      Orders__BaseUrl: http://orders:8080
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+    ports:
+      - "${PDF_WORKER_PORT}:8080"
 
   auth:
     build:

@@ -1,0 +1,9 @@
+<Solution>
+  <Project Path="Application/Application.csproj" />
+  <Project Path="Contracts/Contracts.csproj" />
+  <Project Path="Domain/Domain.csproj" />
+  <Project Path="Infrastructure/Infrastructure.csproj" />
+  <Project Path="IntegrationTests/IntegrationTests.csproj" />
+  <Project Path="PdfWorker/PdfWorker.csproj" />
+  <Project Path="UnitTests/UnitTests.csproj" />
+</Solution>
