@@ -11,6 +11,7 @@ public interface IOrderRepository
     Task<List<Order>> GetByUserIdAsync(Guid userId, CancellationToken ct);
     Task<List<Order>> GetFilteredAsync(OrderFilter filter, CancellationToken ct);
     Task SaveChangesAsync(CancellationToken ct);
+    Task<int> CountAsync(OrderFilter filter, CancellationToken ct);
 }
 
 public class OrderFilter

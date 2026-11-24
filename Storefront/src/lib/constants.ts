@@ -1,0 +1,72 @@
+export const routes = {
+  home: '/',
+  products: '/products',
+  productDetail: (id: string) => `/products/${id}`,
+  search: '/search',
+  cart: '/cart',
+  checkout: '/checkout',
+  login: '/login',
+  register: '/register',
+  orders: '/orders',
+  orderDetail: (id: string) => `/orders/${id}`,
+  documents: '/documents',
+  notifications: '/notifications',
+  profile: '/profile',
+  adminProducts: '/admin/products',
+  adminProductNew: '/admin/products/new',
+  adminProductEdit: (id: string) => `/admin/products/${id}`,
+  adminInventory: '/admin/inventory',
+  adminOrders: '/admin/orders',
+  adminOrderDetail: (id: string) => `/admin/orders/${id}`,
+  adminPayments: '/admin/payments',
+} as const;
+
+export const queryKeys = {
+  products: {
+    all: ['products'] as const,
+    lists: () => [...queryKeys.products.all, 'list'] as const,
+    list: (filters: object) => [...queryKeys.products.lists(), filters] as const,
+    details: () => [...queryKeys.products.all, 'detail'] as const,
+    detail: (idOrSlug: string) => [...queryKeys.products.details(), idOrSlug] as const,
+  },
+  orders: {
+    all: ['orders'] as const,
+    lists: () => [...queryKeys.orders.all, 'list'] as const,
+    list: (filters: object) => [...queryKeys.orders.lists(), filters] as const,
+    details: () => [...queryKeys.orders.all, 'detail'] as const,
+    detail: (id: string) => [...queryKeys.orders.details(), id] as const,
+    byUser: (userId: string) => [...queryKeys.orders.all, 'user', userId] as const,
+  },
+  payments: {
+    all: ['payments'] as const,
+    lists: () => [...queryKeys.payments.all, 'list'] as const,
+    list: (filters: object) => [...queryKeys.payments.lists(), filters] as const,
+    detail: (id: string) => [...queryKeys.payments.all, 'detail', id] as const,
+    byOrder: (orderId: string) => [...queryKeys.payments.all, 'order', orderId] as const,
+  },
+  inventory: {
+    all: ['inventory'] as const,
+    lists: () => [...queryKeys.inventory.all, 'list'] as const,
+    list: (filters: object) => [...queryKeys.inventory.lists(), filters] as const,
+    detail: (productId: string) => [...queryKeys.inventory.all, 'detail', productId] as const,
+  },
+  search: {
+    all: ['search'] as const,
+    results: (query: string, filters: object) => [...queryKeys.search.all, query, filters] as const,
+  },
+  chat: {
+    all: ['chat'] as const,
+  },
+  documents: {
+    all: ['documents'] as const,
+    lists: () => [...queryKeys.documents.all, 'list'] as const,
+    list: (filters: object) => [...queryKeys.documents.lists(), filters] as const,
+    detail: (id: string) => [...queryKeys.documents.all, 'detail', id] as const,
+  },
+  notifications: {
+    all: ['notifications'] as const,
+    lists: () => [...queryKeys.notifications.all, 'list'] as const,
+    list: (filters: object) => [...queryKeys.notifications.lists(), filters] as const,
+    detail: (id: string) => [...queryKeys.notifications.all, 'detail', id] as const,
+  },
+} as const;

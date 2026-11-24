@@ -18,7 +18,10 @@ public record DocumentListResponse(
     IReadOnlyList<DocumentDto> Items,
     int Page,
     int PageSize,
-    int TotalCount);
+    int TotalCount)
+{
+    public int TotalPages => PageSize > 0 ? (int)Math.Ceiling(TotalCount / (double)PageSize) : 0;
+};
 
 public record DocumentDto(
     Guid Id,

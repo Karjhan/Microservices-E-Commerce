@@ -43,6 +43,22 @@ public class ProductRepository : IProductRepository
 
     public async Task<List<Product>> GetFilteredAsync(ProductFilter filter, CancellationToken ct)
     {
+        var products = await QueryFilteredAsync(filter, ct);
+
+        return products
+            .Skip((filter.Page - 1) * filter.PageSize)
+            .Take(filter.PageSize)
+            .ToList();
+    }
+
+    public async Task<int> CountAsync(ProductFilter filter, CancellationToken ct)
+    {
+        var products = await QueryFilteredAsync(filter, ct);
+        return products.Count;
+    }
+
+    private async Task<List<Product>> QueryFilteredAsync(ProductFilter filter, CancellationToken ct)
+    {
         var query = _context.Products
             .AsNoTracking()
             .Include(x => x.Images)
@@ -95,13 +111,9 @@ public class ProductRepository : IProductRepository
                 .ToList();
         }
 
-        products = products
+        return products
             .OrderByDescending(x => x.CreatedAt)
-            .Skip((filter.Page - 1) * filter.PageSize)
-            .Take(filter.PageSize)
             .ToList();
-
-        return products;
     }
 
     public Task DeleteAsync(Product product, CancellationToken ct)

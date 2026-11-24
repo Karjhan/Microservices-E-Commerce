@@ -10,6 +10,7 @@ public interface IProductRepository
     Task<List<Product>> GetFilteredAsync(ProductFilter filter, CancellationToken ct);
 
     Task AddImageAsync(ProductImage image, CancellationToken ct);
+    Task<int> CountAsync(ProductFilter filter, CancellationToken ct);
 
     Task<IReadOnlyList<ProductAttribute>> GetAttributesAsync(Guid productId, CancellationToken ct);
     Task AddAttributeAsync(ProductAttribute attribute, CancellationToken ct);

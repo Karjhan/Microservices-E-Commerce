@@ -3,6 +3,7 @@ namespace Infrastructure.Configuration;
 public class MinioOptions
 {
     public string Endpoint { get; set; } = default!;
+    public string PublicEndpoint { get; set; } = default!;
     public string AccessKey { get; set; } = default!;
     public string SecretKey { get; set; } = default!;
     public string Bucket { get; set; } = default!;

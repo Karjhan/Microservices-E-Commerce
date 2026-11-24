@@ -4,4 +4,4 @@ using MediatR;
 
 namespace Application.Features.Orders.GetOrders;
 
-public record GetOrdersQuery(OrderFilter Filter) : IRequest<List<OrderDto>>;
+public record GetOrdersQuery(OrderFilter Filter) : IRequest<PaginatedListDto<OrderDto>>;

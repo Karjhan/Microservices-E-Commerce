@@ -10,6 +10,25 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddGatewayServices(this IServiceCollection services, IConfiguration config)
     {
+        // CORS
+        var cors = config.GetSection(CorsOptions.SectionName).Get<CorsOptions>() ?? new CorsOptions();
+        services.AddCors(options =>
+        {
+            options.AddPolicy(CorsOptions.PolicyName, policy =>
+            {
+                if (cors.AllowedOrigins.Length > 0)
+                {
+                    policy.WithOrigins(cors.AllowedOrigins);
+                }
+                else
+                {
+                    policy.SetIsOriginAllowed(_ => false);
+                }
+
+                policy.AllowAnyHeader().AllowAnyMethod().WithExposedHeaders("X-Correlation-Id");
+            });
+        });
+
         // JWT
         var jwt = config.GetSection("Jwt").Get<JwtOptions>()!;
 

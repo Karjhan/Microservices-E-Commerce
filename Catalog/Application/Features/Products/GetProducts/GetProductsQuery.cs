@@ -7,4 +7,4 @@ using MediatR;
 namespace Application.Features.Products.GetProducts;
 
 public record GetProductsQuery(ProductFilter Filter)
-    : IRequest<List<ProductDto>>;
+    : IRequest<PaginatedListDto<ProductDto>>;

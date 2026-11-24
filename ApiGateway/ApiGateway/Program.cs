@@ -1,3 +1,4 @@
+using ApiGateway.Configuration;
 using ApiGateway.Extensions;
 using ApiGateway.Middleware;
 using Infrastructure.DependencyInjection;
@@ -36,6 +37,8 @@ var app = builder.Build();
 app.UseMiddleware<ExceptionMiddleware>();
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<RequestLoggingMiddleware>();
+
+app.UseCors(CorsOptions.PolicyName);
 
 app.UseRateLimiter();
 

@@ -12,7 +12,6 @@ public class GetOrdersTests : IntegrationTestBase
     [Fact]
     public async Task Should_Return_Orders_List()
     {
-        // Arrange
         var request = new
         {
             UserId = Guid.NewGuid(),
@@ -23,20 +22,19 @@ public class GetOrdersTests : IntegrationTestBase
 
         await Client.PostAsJsonAsync("/orders", request);
 
-        // Act
         var response = await Client.GetAsync("/orders?page=1&pageSize=10");
 
-        // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var orders = await response.Content.ReadFromJsonAsync<List<OrderDetailResponse>>();
-        orders.Should().NotBeEmpty();
+        var result = await response.Content.ReadFromJsonAsync<PaginatedListResponse<OrderDetailResponse>>();
+        result.Should().NotBeNull();
+        result!.Items.Should().NotBeEmpty();
+        result.TotalCount.Should().BeGreaterThan(0);
     }
 
     [Fact]
     public async Task Should_Filter_By_UserId()
     {
-        // Arrange
         var userId = Guid.NewGuid();
 
         var request = new
@@ -49,14 +47,13 @@ public class GetOrdersTests : IntegrationTestBase
 
         await Client.PostAsJsonAsync("/orders", request);
 
-        // Act
         var response = await Client.GetAsync($"/orders?userId={userId}&page=1&pageSize=10");
 
-        // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var orders = await response.Content.ReadFromJsonAsync<List<OrderDetailResponse>>();
-        orders.Should().NotBeEmpty();
-        orders!.Should().AllSatisfy(o => o.UserId.Should().Be(userId));
+        var result = await response.Content.ReadFromJsonAsync<PaginatedListResponse<OrderDetailResponse>>();
+        result.Should().NotBeNull();
+        result!.Items.Should().NotBeEmpty();
+        result.Items.Should().AllSatisfy(o => o.UserId.Should().Be(userId));
     }
 }

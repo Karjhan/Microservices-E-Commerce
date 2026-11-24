@@ -9,22 +9,26 @@ using MediatR;
 namespace Application.Features.Orders.GetOrders;
 
 public class GetOrdersHandler(IOrderRepository repo, ICacheService cache)
-    : IRequestHandler<GetOrdersQuery, List<OrderDto>>
+    : IRequestHandler<GetOrdersQuery, PaginatedListDto<OrderDto>>
 {
-    public async Task<List<OrderDto>> Handle(GetOrdersQuery request, CancellationToken ct)
+    public async Task<PaginatedListDto<OrderDto>> Handle(GetOrdersQuery request, CancellationToken ct)
     {
         var cacheKey = $"orders:{ComputeHash(request.Filter)}";
 
-        var cached = await cache.GetAsync<List<OrderDto>>(cacheKey);
+        var cached = await cache.GetAsync<PaginatedListDto<OrderDto>>(cacheKey);
         if (cached is not null)
             return cached;
 
         var orders = await repo.GetFilteredAsync(request.Filter, ct);
+        var totalCount = await repo.CountAsync(request.Filter, ct);
 
-        var result = orders
-            .Select(OrderDto.FromEntity)
-            .ToList();
-
+        var result = new PaginatedListDto<OrderDto>
+        {
+            Items = orders.Select(OrderDto.FromEntity).ToList(),
+            Page = request.Filter.Page,
+            PageSize = request.Filter.PageSize,
+            TotalCount = totalCount
+        };
         await cache.SetAsync(cacheKey, result, TimeSpan.FromMinutes(2));
 
         return result;

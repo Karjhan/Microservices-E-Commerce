@@ -23,6 +23,25 @@ public class OrderRepository : IOrderRepository
         await _context.OrderItems.AddAsync(item, ct);
     }
 
+    public Task<int> CountAsync(OrderFilter filter, CancellationToken ct)
+    {
+        var query = _context.Orders.AsNoTracking().AsQueryable();
+
+        if (filter.UserId.HasValue)
+            query = query.Where(x => x.UserId == filter.UserId.Value);
+
+        if (filter.Status.HasValue)
+            query = query.Where(x => x.Status == filter.Status.Value);
+
+        if (filter.FromDate.HasValue)
+            query = query.Where(x => x.CreatedAt >= filter.FromDate.Value);
+
+        if (filter.ToDate.HasValue)
+            query = query.Where(x => x.CreatedAt <= filter.ToDate.Value);
+
+        return query.CountAsync(ct);
+    }
+
     public async Task<Order?> GetByIdAsync(Guid id, CancellationToken ct)
     {
         return await _context.Orders

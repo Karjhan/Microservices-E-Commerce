@@ -23,29 +23,36 @@ public class GetProductsHandlerTests
     [Fact]
     public async Task Should_Return_From_Cache()
     {
-        var list = new List<ProductDto>
+        var cached = new PaginatedListDto<ProductDto>
         {
-            ProductDto.FromEntity(TestDataBuilder.CreateProduct())
+            Items = [ProductDto.FromEntity(TestDataBuilder.CreateProduct())],
+            Page = 1,
+            PageSize = 20,
+            TotalCount = 1
         };
 
-        _cache.Setup(x => x.GetAsync<List<ProductDto>>(It.IsAny<string>()))
-            .ReturnsAsync(list);
+        _cache.Setup(x => x.GetAsync<PaginatedListDto<ProductDto>>(It.IsAny<string>()))
+            .ReturnsAsync(cached);
 
         var result = await _handler.Handle(
             new GetProductsQuery(new Domain.Commons.ProductFilter()),
             CancellationToken.None);
 
-        result.Should().HaveCount(1);
+        result.Items.Should().HaveCount(1);
+        result.TotalCount.Should().Be(1);
     }
 
     [Fact]
     public async Task Should_Query_Repository_When_No_Cache()
     {
-        _cache.Setup(x => x.GetAsync<List<ProductDto>>(It.IsAny<string>()))
-            .ReturnsAsync((List<ProductDto>?)null);
+        _cache.Setup(x => x.GetAsync<PaginatedListDto<ProductDto>>(It.IsAny<string>()))
+            .ReturnsAsync((PaginatedListDto<ProductDto>?)null);
 
         _repo.Setup(x => x.GetFilteredAsync(It.IsAny<Domain.Commons.ProductFilter>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Domain.Entities.Product>());
+
+        _repo.Setup(x => x.CountAsync(It.IsAny<Domain.Commons.ProductFilter>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
 
         _cache.Setup(x => x.SetAsync(It.IsAny<string>(), It.IsAny<object>(), It.IsAny<TimeSpan?>()))
             .Returns(Task.CompletedTask);
@@ -54,6 +61,9 @@ public class GetProductsHandlerTests
             new GetProductsQuery(new Domain.Commons.ProductFilter()),
             CancellationToken.None);
 
-        result.Should().BeEmpty();
+        result.Items.Should().BeEmpty();
+        result.TotalCount.Should().Be(0);
+        result.Page.Should().Be(1);
+        result.PageSize.Should().Be(20);
     }
 }

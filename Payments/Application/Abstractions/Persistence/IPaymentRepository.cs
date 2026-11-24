@@ -13,6 +13,7 @@ public interface IPaymentRepository
     Task<List<Payment>> GetFilteredAsync(PaymentFilter filter, CancellationToken ct);
     Task<List<Payment>> GetExpiredPendingPaymentsAsync(CancellationToken ct);
     Task SaveChangesAsync(CancellationToken ct);
+    Task<int> CountAsync(PaymentFilter filter, CancellationToken ct);
 }
 
 public class PaymentFilter

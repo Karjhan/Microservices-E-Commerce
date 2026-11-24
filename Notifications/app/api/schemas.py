@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, computed_field
 
 from app.domain.enums import DeliveryStatus, NotificationType, ChannelType
 
@@ -38,3 +38,10 @@ class NotificationListResponse(BaseModel):
     page: int
     pageSize: int
     totalCount: int
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def totalPages(self) -> int:
+        if self.pageSize <= 0:
+            return 0
+        return (self.totalCount + self.pageSize - 1) // self.pageSize

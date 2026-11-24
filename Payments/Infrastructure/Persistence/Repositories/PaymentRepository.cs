@@ -31,6 +31,31 @@ public class PaymentRepository : IPaymentRepository
             .FirstOrDefaultAsync(x => x.Id == id, ct);
     }
 
+    public Task<int> CountAsync(PaymentFilter filter, CancellationToken ct)
+    {
+        var query = _context.Payments.AsNoTracking().AsQueryable();
+
+        if (filter.UserId.HasValue)
+            query = query.Where(x => x.UserId == filter.UserId.Value);
+
+        if (filter.OrderId.HasValue)
+            query = query.Where(x => x.OrderId == filter.OrderId.Value);
+
+        if (filter.Status.HasValue)
+            query = query.Where(x => x.Status == filter.Status.Value);
+
+        if (filter.Method.HasValue)
+            query = query.Where(x => x.Method == filter.Method.Value);
+
+        if (filter.FromDate.HasValue)
+            query = query.Where(x => x.CreatedAt >= filter.FromDate.Value);
+
+        if (filter.ToDate.HasValue)
+            query = query.Where(x => x.CreatedAt <= filter.ToDate.Value);
+
+        return query.CountAsync(ct);
+    }
+
     public async Task<Payment?> GetByOrderIdAsync(Guid orderId, CancellationToken ct)
     {
         return await _context.Payments

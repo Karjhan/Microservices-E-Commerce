@@ -4,4 +4,4 @@ using MediatR;
 
 namespace Application.Features.Payments.GetPayments;
 
-public record GetPaymentsQuery(PaymentFilter Filter) : IRequest<List<PaymentDto>>;
+public record GetPaymentsQuery(PaymentFilter Filter) : IRequest<PaginatedListDto<PaymentDto>>;

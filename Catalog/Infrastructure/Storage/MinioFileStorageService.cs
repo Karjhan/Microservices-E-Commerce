@@ -42,7 +42,7 @@ public class MinioFileStorageService : IFileStorageService
             .WithFileName(filePath)
             .WithContentType(contentType));
 
-        var url = $"{_options.Endpoint}/{_options.Bucket}/{objectKey}";
+        var url = BuildPublicUrl(objectKey);
 
         activity?.SetTag("object.url", url);
 
@@ -58,5 +58,17 @@ public class MinioFileStorageService : IFileStorageService
         await _minio.RemoveObjectAsync(new RemoveObjectArgs()
             .WithBucket(_options.Bucket)
             .WithObject(objectKey));
+    }
+
+    private string BuildPublicUrl(string objectKey)
+    {
+        var baseUrl = (_options.PublicEndpoint ?? _options.Endpoint).TrimEnd('/');
+        if (!baseUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+            && !baseUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            baseUrl = $"http://{baseUrl}";
+        }
+
+        return $"{baseUrl}/{_options.Bucket}/{objectKey}";
     }
 }
