@@ -1,4 +1,4 @@
-﻿# -------- BASE RUNTIME --------
+# -------- BASE RUNTIME --------
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
 WORKDIR /app
 EXPOSE 8080
@@ -17,6 +17,9 @@ COPY ["Infrastructure/Infrastructure.csproj", "Infrastructure/"]
 COPY ["IntegrationTests/IntegrationTests.csproj", "IntegrationTests/"]
 
 # Restore
+# Shared libraries (BuildKit additional context 'shared', see docker-compose.yml)
+COPY --from=shared [".", "/Shared/"]
+
 RUN dotnet restore
 
 # Copy everything

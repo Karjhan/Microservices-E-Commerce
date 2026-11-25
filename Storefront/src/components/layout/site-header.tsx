@@ -15,6 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useAuth } from '@/hooks/use-auth';
 import { useCart } from '@/hooks/use-cart';
 import { cn } from '@/lib/utils';
 
@@ -29,10 +30,7 @@ export function SiteHeader() {
   const { data: session } = useSession();
   const { theme, setTheme } = useTheme();
   const { totals } = useCart();
-
-  const isStaff = ['Admin', 'Manager', 'Support'].includes(
-    (session?.user as any)?.role
-  );
+  const { isAdmin } = useAuth();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -58,7 +56,7 @@ export function SiteHeader() {
                 {link.label}
               </Link>
             ))}
-            {isStaff && (
+            {isAdmin && (
               <Link
                 href="/admin/products"
                 className={cn(
@@ -150,6 +148,15 @@ export function SiteHeader() {
                     {link.label}
                   </Link>
                 ))}
+                {isAdmin && (
+                  <Link
+                    href="/admin/products"
+                    className="text-sm font-medium hover:text-primary"
+                    data-testid="mobile-admin-link"
+                  >
+                    Admin
+                  </Link>
+                )}
                 {!session && (
                   <>
                     <Link href="/login" className="text-sm font-medium hover:text-primary">

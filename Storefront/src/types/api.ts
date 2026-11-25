@@ -1,5 +1,8 @@
 export interface ApiError {
   error: string;
+  /** Problem Details fields returned for 401/403 refusals. */
+  title?: string;
+  detail?: string;
   code: string;
   details?: Record<string, unknown>;
 }

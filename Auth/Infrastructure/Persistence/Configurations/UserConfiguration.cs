@@ -27,6 +27,9 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .IsRequired()
             .HasMaxLength(50);
 
+        // FR-003: only Admin and Customer exist. Legacy Manager/Support rows are migrated to Customer.
+        builder.ToTable(t => t.HasCheckConstraint("CK_Users_Role", "\"Role\" IN ('Admin', 'Customer')"));
+
         builder.Property(x => x.CreatedAt)
             .IsRequired();
         

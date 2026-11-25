@@ -50,6 +50,10 @@ export const queryKeys = {
     list: (filters: object) => [...queryKeys.inventory.lists(), filters] as const,
     detail: (productId: string) => [...queryKeys.inventory.all, 'detail', productId] as const,
   },
+  audit: {
+    all: ['audit'] as const,
+    list: (filters: object) => [...queryKeys.audit.all, 'list', filters] as const,
+  },
   search: {
     all: ['search'] as const,
     results: (query: string, filters: object) => [...queryKeys.search.all, query, filters] as const,

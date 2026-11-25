@@ -1,5 +1,6 @@
 using Application.Features.Products.DeleteAttribute;
 using MediatR;
+using Shared.Security.Authorization;
 
 namespace Catalog.Endpoints.Products;
 
@@ -15,7 +16,8 @@ public static class DeleteProductAttributeEndpoint
         {
             await mediator.Send(new DeleteProductAttributeCommand(productId, attributeId), ct);
             return Results.NoContent();
-        });
+        })
+            .RequireAuthorization(AuthorizationPolicies.AdminOnly);
 
         return app;
     }

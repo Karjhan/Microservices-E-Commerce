@@ -1,6 +1,7 @@
 using Application.Abstractions.Persistence;
 using Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Infrastructure.Persistence.Repositories;
 
@@ -91,5 +92,29 @@ public class OrderRepository : IOrderRepository
     public async Task SaveChangesAsync(CancellationToken ct)
     {
         await _context.SaveChangesAsync(ct);
+    }
+
+    public void DiscardPendingChanges() => _context.ChangeTracker.Clear();
+
+    public async Task<ITransactionScope> BeginTransactionAsync(CancellationToken ct)
+    {
+        var transaction = await _context.Database.BeginTransactionAsync(ct);
+        return new EfTransactionScope(transaction);
+    }
+
+    private sealed class EfTransactionScope : ITransactionScope
+    {
+        private readonly IDbContextTransaction _transaction;
+
+        public EfTransactionScope(IDbContextTransaction transaction)
+        {
+            _transaction = transaction;
+        }
+
+        public Task CommitAsync(CancellationToken ct) => _transaction.CommitAsync(ct);
+
+        public Task RollbackAsync(CancellationToken ct) => _transaction.RollbackAsync(ct);
+
+        public ValueTask DisposeAsync() => _transaction.DisposeAsync();
     }
 }

@@ -14,7 +14,7 @@ public static class ProcessPaymentEndpoint
         {
             await mediator.Send(new ProcessPaymentCommand(id), ct);
             return Results.Ok(new { message = "Payment processed" });
-        });
+        }).RequireAuthorization();
 
         return app;
     }

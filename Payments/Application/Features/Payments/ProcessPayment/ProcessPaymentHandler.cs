@@ -2,12 +2,14 @@ using Application.Abstractions.Caching;
 using Application.Abstractions.Messaging;
 using Application.Abstractions.Payments;
 using Application.Abstractions.Persistence;
+using Application.Common;
 using Contracts.Events;
 using Domain.Entities;
 using Domain.Enums;
 using Domain.Exceptions;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Shared.Security.Authorization;
 
 namespace Application.Features.Payments.ProcessPayment;
 
@@ -16,13 +18,16 @@ public class ProcessPaymentHandler(
     IEventPublisher publisher,
     ICacheService cache,
     IPaymentProvider paymentProvider,
-    ILogger<ProcessPaymentHandler> logger)
+    ILogger<ProcessPaymentHandler> logger,
+    ICurrentUser user)
     : IRequestHandler<ProcessPaymentCommand>
 {
     public async Task Handle(ProcessPaymentCommand request, CancellationToken ct)
     {
         var payment = await repo.GetByIdAsync(request.PaymentId, ct)
             ?? throw new PaymentNotFoundException(request.PaymentId);
+
+        PaymentAccess.EnsureOwnerOrAdmin(user, payment.UserId, payment.Id);
 
         if (payment.IsExpired)
         {

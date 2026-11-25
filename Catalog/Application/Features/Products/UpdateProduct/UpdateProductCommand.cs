@@ -1,5 +1,6 @@
 using Domain.Commons;
 using MediatR;
+using Shared.Security.Audit;
 
 namespace Application.Features.Products.UpdateProduct;
 
@@ -20,4 +21,10 @@ public record UpdateProductCommand(
     
     int? DownloadCount,
     double? AverageRating
-) : IRequest;
+) : IRequest, IAuditedRequest
+{
+    string IAuditedRequest.AuditAction => "product.update";
+    string IAuditedRequest.AuditTargetType => "Product";
+    string? IAuditedRequest.AuditTargetId => ProductId.ToString();
+    object? IAuditedRequest.AuditDetails => new { name = Name, price = Price, currency = Currency };
+}

@@ -14,6 +14,7 @@ public static class ApplicationServiceCollectionExtensions
         });
 
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
+        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(AuditBehavior<,>));
 
         return services;
     }

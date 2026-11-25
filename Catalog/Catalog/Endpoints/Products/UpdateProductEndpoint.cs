@@ -1,6 +1,7 @@
 using Application.Features.Products.UpdateProduct;
 using Domain.Commons;
 using MediatR;
+using Shared.Security.Authorization;
 
 namespace Catalog.Endpoints.Products;
 
@@ -32,7 +33,8 @@ public static class UpdateProductEndpoint
             await mediator.Send(command);
 
             return Results.NoContent();
-        });
+        })
+            .RequireAuthorization(AuthorizationPolicies.AdminOnly);
 
         return app;
     }

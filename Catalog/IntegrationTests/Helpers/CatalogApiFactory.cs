@@ -45,10 +45,10 @@ public class CatalogApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             .Build();
 
         _minio = new MinioBuilder()
-            .WithImage("minio/minio:latest")
+            .WithImage("cgr.dev/chainguard/minio:latest")
             .WithEnvironment("MINIO_ROOT_USER", "minioadmin")
             .WithEnvironment("MINIO_ROOT_PASSWORD", "minioadmin")
-            .WithCommand("server /data --console-address :9001")
+            .WithCommand("--console-address", ":9001")
             .WithPortBinding(9000, true)
             .WithPortBinding(9001, true)
             .WithWaitStrategy(Wait.ForUnixContainer()
@@ -64,7 +64,7 @@ public class CatalogApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         await _redis.StartAsync();
         await _rabbit.StartAsync();
         await _minio.StartAsync();
-        //await WaitForMinio();
+        await WaitForMinio();
     }
 
     public new async Task DisposeAsync()

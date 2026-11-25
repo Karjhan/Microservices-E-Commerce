@@ -12,6 +12,17 @@ public interface IOrderRepository
     Task<List<Order>> GetFilteredAsync(OrderFilter filter, CancellationToken ct);
     Task SaveChangesAsync(CancellationToken ct);
     Task<int> CountAsync(OrderFilter filter, CancellationToken ct);
+
+    Task<ITransactionScope> BeginTransactionAsync(CancellationToken ct);
+
+    /// <summary>Forgets staged, unsaved changes (used after a failed unit of work).</summary>
+    void DiscardPendingChanges();
+}
+
+public interface ITransactionScope : IAsyncDisposable
+{
+    Task CommitAsync(CancellationToken ct);
+    Task RollbackAsync(CancellationToken ct);
 }
 
 public class OrderFilter

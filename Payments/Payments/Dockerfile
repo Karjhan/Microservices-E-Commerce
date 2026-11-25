@@ -1,4 +1,4 @@
-﻿FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
 WORKDIR /app
 EXPOSE 8080
 
@@ -17,6 +17,9 @@ COPY ["Infrastructure/Infrastructure.csproj", "Infrastructure/"]
 COPY ["Contracts/Contracts.csproj", "Contracts/"]
 COPY ["IntegrationTests/IntegrationTests.csproj", "IntegrationTests/"]
 COPY ["UnitTests/UnitTests.csproj", "UnitTests/"]
+
+# Shared libraries (BuildKit additional context 'shared', see docker-compose.yml)
+COPY --from=shared [".", "/Shared/"]
 
 RUN dotnet restore
 

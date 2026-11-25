@@ -120,3 +120,5 @@ testcontainers-logs/
 
 *.swp
 *.bak
+# Local corporate CA certs (e.g. Zscaler) mounted into containers
+docker/certs/

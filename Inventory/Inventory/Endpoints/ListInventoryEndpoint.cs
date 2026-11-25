@@ -1,6 +1,7 @@
 using Application.Abstractions.Persistence;
 using Application.Features.Inventory.List;
 using MediatR;
+using Shared.Security.Authorization;
 
 namespace Inventory.Endpoints;
 
@@ -24,7 +25,7 @@ public static class ListInventoryEndpoint
 
             var result = await mediator.Send(new ListInventoryQuery(filter), ct);
             return Results.Ok(result);
-        });
+        }).RequireAuthorization(AuthorizationPolicies.AdminOnly);
 
         return app;
     }

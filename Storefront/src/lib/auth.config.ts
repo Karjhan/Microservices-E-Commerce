@@ -1,5 +1,8 @@
 import type { NextAuthConfig } from 'next-auth';
 
+// Only administrators may use the staff area (research R2). The services enforce the same rule.
+export const STAFF_ROLE = 'Admin';
+
 export const authConfig: NextAuthConfig = {
   pages: {
     signIn: '/login',
@@ -21,8 +24,7 @@ export const authConfig: NextAuthConfig = {
       if (isStaffRoute) {
         if (!isLoggedIn) return false;
         const role = (auth as any)?.user?.role;
-        const staffRoles = ['Admin', 'Manager', 'Support'];
-        return staffRoles.includes(role);
+        return role === STAFF_ROLE;
       }
 
       if (!isPublic && !isLoggedIn) return false;

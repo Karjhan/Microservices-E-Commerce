@@ -27,6 +27,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\Orders\Orders.csproj" />
+      <ProjectReference Include="..\..\Shared\Security.TestSupport\Security.TestSupport.csproj" />
     </ItemGroup>
 
 </Project>

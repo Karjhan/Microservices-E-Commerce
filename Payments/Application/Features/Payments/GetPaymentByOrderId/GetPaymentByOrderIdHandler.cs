@@ -1,11 +1,13 @@
 using Application.Abstractions.Caching;
 using Application.Abstractions.Persistence;
+using Application.Common;
 using Application.DTOs;
 using MediatR;
+using Shared.Security.Authorization;
 
 namespace Application.Features.Payments.GetPaymentByOrderId;
 
-public class GetPaymentByOrderIdHandler(IPaymentRepository repo, ICacheService cache)
+public class GetPaymentByOrderIdHandler(IPaymentRepository repo, ICacheService cache, ICurrentUser user)
     : IRequestHandler<GetPaymentByOrderIdQuery, PaymentDto>
 {
     public async Task<PaymentDto> Handle(GetPaymentByOrderIdQuery request, CancellationToken ct)
@@ -14,12 +16,18 @@ public class GetPaymentByOrderIdHandler(IPaymentRepository repo, ICacheService c
 
         var cached = await cache.GetAsync<PaymentDto>(cacheKey);
         if (cached is not null)
+        {
+            // The cache is shared by every caller, so ownership is checked on a hit too.
+            PaymentAccess.EnsureOwnerOrAdmin(user, cached.UserId, cached.Id);
             return cached;
+        }
 
         var payment = await repo.GetByOrderIdAsync(request.OrderId, ct);
 
         if (payment is null)
             throw new KeyNotFoundException($"No payment found for order {request.OrderId}");
+
+        PaymentAccess.EnsureOwnerOrAdmin(user, payment.UserId, payment.Id);
 
         var dto = PaymentDto.FromEntity(payment);
 

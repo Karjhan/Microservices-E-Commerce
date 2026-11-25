@@ -19,7 +19,7 @@ public class GetOrderByIdHandlerTests
 
     public GetOrderByIdHandlerTests()
     {
-        _handler = new GetOrderByIdHandler(_repo.Object, _cache.Object);
+        _handler = new GetOrderByIdHandler(_repo.Object, _cache.Object, FakeCurrentUser.Admin());
     }
 
     [Fact]
@@ -82,5 +82,47 @@ public class GetOrderByIdHandlerTests
         // Act & Assert
         await Assert.ThrowsAsync<OrderNotFoundException>(
             () => _handler.Handle(new GetOrderByIdQuery(orderId), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Should_Return_Order_To_Its_Owner()
+    {
+        var order = TestDataBuilder.CreateFullOrder();
+        _repo.Setup(x => x.GetByIdAsync(order.Id, It.IsAny<CancellationToken>())).ReturnsAsync(order);
+        _cache.Setup(x => x.GetAsync<OrderDto>($"order:{order.Id}")).ReturnsAsync((OrderDto?)null);
+
+        var handler = new GetOrderByIdHandler(_repo.Object, _cache.Object, FakeCurrentUser.Customer(order.UserId));
+
+        var result = await handler.Handle(new GetOrderByIdQuery(order.Id), CancellationToken.None);
+
+        result.Id.Should().Be(order.Id);
+    }
+
+    [Fact]
+    public async Task Should_Report_Not_Found_For_Non_Owner_When_Loaded_From_Database()
+    {
+        var order = TestDataBuilder.CreateFullOrder();
+        _repo.Setup(x => x.GetByIdAsync(order.Id, It.IsAny<CancellationToken>())).ReturnsAsync(order);
+        _cache.Setup(x => x.GetAsync<OrderDto>($"order:{order.Id}")).ReturnsAsync((OrderDto?)null);
+
+        var handler = new GetOrderByIdHandler(_repo.Object, _cache.Object, FakeCurrentUser.Customer(Guid.NewGuid()));
+
+        await Assert.ThrowsAsync<OrderNotFoundException>(
+            () => handler.Handle(new GetOrderByIdQuery(order.Id), CancellationToken.None));
+
+        _cache.Verify(x => x.SetAsync(It.IsAny<string>(), It.IsAny<OrderDto>(), It.IsAny<TimeSpan?>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Should_Report_Not_Found_For_Non_Owner_When_Served_From_Cache()
+    {
+        var orderId = Guid.NewGuid();
+        var cached = new OrderDto { Id = orderId, UserId = Guid.NewGuid(), Status = "PendingPayment", Currency = "EUR" };
+        _cache.Setup(x => x.GetAsync<OrderDto>($"order:{orderId}")).ReturnsAsync(cached);
+
+        var handler = new GetOrderByIdHandler(_repo.Object, _cache.Object, FakeCurrentUser.Customer(Guid.NewGuid()));
+
+        await Assert.ThrowsAsync<OrderNotFoundException>(
+            () => handler.Handle(new GetOrderByIdQuery(orderId), CancellationToken.None));
     }
 }

@@ -17,7 +17,7 @@ public class GetPaymentByOrderIdHandlerTests
 
     public GetPaymentByOrderIdHandlerTests()
     {
-        _handler = new GetPaymentByOrderIdHandler(_repo.Object, _cache.Object);
+        _handler = new GetPaymentByOrderIdHandler(_repo.Object, _cache.Object, FakeCurrentUser.Admin());
     }
 
     [Fact]
@@ -79,5 +79,44 @@ public class GetPaymentByOrderIdHandlerTests
         // Act & Assert
         await Assert.ThrowsAsync<KeyNotFoundException>(
             () => _handler.Handle(new GetPaymentByOrderIdQuery(Guid.NewGuid()), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Should_Return_Payment_To_Its_Owner()
+    {
+        var payment = TestDataBuilder.CreatePayment();
+        _cache.Setup(x => x.GetAsync<PaymentDto>(It.IsAny<string>())).ReturnsAsync((PaymentDto?)null);
+        _repo.Setup(x => x.GetByOrderIdAsync(payment.OrderId, It.IsAny<CancellationToken>())).ReturnsAsync(payment);
+
+        var handler = new GetPaymentByOrderIdHandler(_repo.Object, _cache.Object, FakeCurrentUser.Customer(payment.UserId));
+
+        var result = await handler.Handle(new GetPaymentByOrderIdQuery(payment.OrderId), CancellationToken.None);
+
+        result.OrderId.Should().Be(payment.OrderId);
+    }
+
+    [Fact]
+    public async Task Should_Report_Not_Found_For_Non_Owner()
+    {
+        var payment = TestDataBuilder.CreatePayment();
+        _cache.Setup(x => x.GetAsync<PaymentDto>(It.IsAny<string>())).ReturnsAsync((PaymentDto?)null);
+        _repo.Setup(x => x.GetByOrderIdAsync(payment.OrderId, It.IsAny<CancellationToken>())).ReturnsAsync(payment);
+
+        var handler = new GetPaymentByOrderIdHandler(_repo.Object, _cache.Object, FakeCurrentUser.Customer(Guid.NewGuid()));
+
+        await Assert.ThrowsAsync<global::Domain.Exceptions.PaymentNotFoundException>(
+            () => handler.Handle(new GetPaymentByOrderIdQuery(payment.OrderId), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Should_Report_Not_Found_For_Non_Owner_When_Served_From_Cache()
+    {
+        var payment = TestDataBuilder.CreatePayment();
+        _cache.Setup(x => x.GetAsync<PaymentDto>($"payment:order:{payment.OrderId}")).ReturnsAsync(PaymentDto.FromEntity(payment));
+
+        var handler = new GetPaymentByOrderIdHandler(_repo.Object, _cache.Object, FakeCurrentUser.Customer(Guid.NewGuid()));
+
+        await Assert.ThrowsAsync<global::Domain.Exceptions.PaymentNotFoundException>(
+            () => handler.Handle(new GetPaymentByOrderIdQuery(payment.OrderId), CancellationToken.None));
     }
 }

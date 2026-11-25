@@ -25,6 +25,27 @@ async function getAuthToken(): Promise<string | null> {
   }
 }
 
+export const FORBIDDEN_MESSAGE =
+  'You are not permitted to do this. If your role was changed recently, sign out and sign in again.';
+
+export function isForbidden(error: unknown): boolean {
+  return error instanceof ApiClientError && error.status === 403;
+}
+
+function redirectToSignIn() {
+  if (typeof window === 'undefined') return;
+  const { pathname, search } = window.location;
+  if (pathname === '/login') return;
+  const callbackUrl = encodeURIComponent(pathname + search);
+  window.location.href = `/login?callbackUrl=${callbackUrl}`;
+}
+
+async function notifyForbidden() {
+  if (typeof window === 'undefined') return;
+  const { toast } = await import('sonner');
+  toast.error(FORBIDDEN_MESSAGE, { id: 'forbidden' });
+}
+
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     let errorBody: ApiError = { error: 'Unknown error', code: 'UNKNOWN' };
@@ -32,8 +53,12 @@ async function handleResponse<T>(response: Response): Promise<T> {
       errorBody = await response.json();
     } catch {}
 
-    if (response.status === 401 && typeof window !== 'undefined') {
-      window.location.href = '/login';
+    if (response.status === 401) {
+      redirectToSignIn();
+    }
+
+    if (response.status === 403) {
+      void notifyForbidden();
     }
 
     throw new ApiClientError(

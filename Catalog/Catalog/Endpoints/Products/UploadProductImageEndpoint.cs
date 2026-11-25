@@ -1,5 +1,6 @@
 using Application.Features.Products.UploadImage;
 using MediatR;
+using Shared.Security.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Catalog.Endpoints.Products;
@@ -48,7 +49,8 @@ public static class UploadProductImageEndpoint
                         File.Delete(tempFilePath);
                 }
             })
-            .DisableAntiforgery();
+            .DisableAntiforgery()
+            .RequireAuthorization(AuthorizationPolicies.AdminOnly);
 
         return app;
     }

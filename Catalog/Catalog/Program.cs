@@ -9,6 +9,7 @@ using Infrastructure.Persistence;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Shared.Security.Configuration;
 using Minio;
 using Minio.DataModel.Args;
 using OpenTelemetry.Logs;
@@ -40,6 +41,9 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services
     .AddApplication()
     .AddInfrastructure(builder.Configuration);
+
+// Shared JWT validation, AdminOnly policy, 401/403 problem handler, ICurrentUser (FR-001, FR-002)
+builder.Services.AddSharedSecurity(builder.Configuration);
 
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
@@ -90,6 +94,9 @@ app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseMiddleware<ExceptionMiddleware>();
 
+app.UseAuthentication();
+app.UseAuthorization();
+
 if (!isTesting && isDevelopment)
 {
     using var scope = app.Services.CreateScope();
@@ -138,6 +145,7 @@ if (!isTesting)
 
 var products = app.MapGroup("/products");
 
+products.MapGetProductsAudit();
 products.MapCreateProduct();
 products.MapDeleteProduct();
 products.MapGetProductById();

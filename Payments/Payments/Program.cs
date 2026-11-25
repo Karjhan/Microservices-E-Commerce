@@ -9,6 +9,7 @@ using Microsoft.Extensions.Options;
 using OpenTelemetry.Logs;
 using Payments.Endpoints;
 using Payments.Middleware;
+using Shared.Security.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -33,6 +34,8 @@ builder.Logging.AddOpenTelemetry(options =>
 });
 
 builder.Services.AddEndpointsApiExplorer();
+
+builder.Services.AddSharedSecurity(builder.Configuration);
 
 builder.Services
     .AddApplication()
@@ -85,6 +88,9 @@ app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseMiddleware<ExceptionMiddleware>();
 
+app.UseAuthentication();
+app.UseAuthorization();
+
 if (!isTesting && isDevelopment)
 {
     using var scope = app.Services.CreateScope();
@@ -124,6 +130,7 @@ payments.MapRefundPayment();
 payments.MapGetPaymentById();
 payments.MapGetPayments();
 payments.MapGetPaymentByOrderId();
+payments.MapGetPaymentsAudit();
 
 app.Run();
 

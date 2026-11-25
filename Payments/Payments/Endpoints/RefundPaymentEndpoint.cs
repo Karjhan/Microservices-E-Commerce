@@ -1,5 +1,6 @@
 using Application.Features.Payments.RefundPayment;
 using MediatR;
+using Shared.Security.Authorization;
 
 namespace Payments.Endpoints;
 
@@ -15,7 +16,7 @@ public static class RefundPaymentEndpoint
         {
             await mediator.Send(new RefundPaymentCommand(id, request?.Amount), ct);
             return Results.Ok(new { message = "Payment refunded" });
-        });
+        }).RequireAuthorization(AuthorizationPolicies.AdminOnly);
 
         return app;
     }

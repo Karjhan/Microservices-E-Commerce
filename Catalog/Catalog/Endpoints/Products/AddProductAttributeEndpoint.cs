@@ -1,5 +1,6 @@
 using Application.Features.Products.AddAttribute;
 using MediatR;
+using Shared.Security.Authorization;
 
 namespace Catalog.Endpoints.Products;
 
@@ -21,7 +22,8 @@ public static class AddProductAttributeEndpoint
             {
                 attributeId
             });
-        });
+        })
+            .RequireAuthorization(AuthorizationPolicies.AdminOnly);
 
         return app;
     }

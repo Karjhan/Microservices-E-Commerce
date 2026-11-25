@@ -1,3 +1,5 @@
+using Shared.Security.TestSupport;
+
 namespace IntegrationTests.Helpers;
 
 public abstract class IntegrationTestBase : IClassFixture<OrdersApiFactory>
@@ -8,6 +10,7 @@ public abstract class IntegrationTestBase : IClassFixture<OrdersApiFactory>
     protected IntegrationTestBase(OrdersApiFactory factory)
     {
         Factory = factory;
-        Client = factory.CreateClient();
+        // Admin operations are gated (FR-001), so the default client is an administrator.
+        Client = factory.CreateClient().AsAdmin();
     }
 }

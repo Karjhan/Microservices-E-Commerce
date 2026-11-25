@@ -1,4 +1,4 @@
-export type UserRole = 'Admin' | 'Customer' | 'Manager' | 'Support';
+export type UserRole = 'Admin' | 'Customer';
 export type AuthProvider = 'Internal' | 'Google';
 
 export interface User {

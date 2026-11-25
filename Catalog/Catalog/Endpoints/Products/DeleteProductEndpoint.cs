@@ -1,5 +1,6 @@
 using Application.Features.Products.DeleteProduct;
 using MediatR;
+using Shared.Security.Authorization;
 
 namespace Catalog.Endpoints.Products;
 
@@ -13,7 +14,8 @@ public static class DeleteProductEndpoint
         {
             await mediator.Send(new DeleteProductCommand(id));
             return Results.NoContent();
-        });
+        })
+            .RequireAuthorization(AuthorizationPolicies.AdminOnly);
 
         return app;
     }

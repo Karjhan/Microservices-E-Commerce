@@ -2,6 +2,7 @@ using Application.Abstractions.Caching;
 using Application.Abstractions.Messaging;
 using Application.Abstractions.Payments;
 using Application.Abstractions.Persistence;
+using Infrastructure.Audit;
 using Infrastructure.BackgroundJobs;
 using Infrastructure.Caching;
 using Infrastructure.Configuration;
@@ -15,6 +16,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
+using Shared.Security.Audit;
 using StackExchange.Redis;
 using Stripe;
 
@@ -41,6 +43,8 @@ public static class InfrastructureServiceCollectionExtensions
         });
 
         services.AddScoped<IPaymentRepository, PaymentRepository>();
+        services.AddScoped<IAuditWriter, EfAuditWriter>();
+        services.AddScoped<IAuditReader, EfAuditReader>();
 
         var redisOptions = config.GetSection("Redis").Get<RedisOptions>();
 
