@@ -80,6 +80,12 @@ public class GatewayAccessTests : IAsyncLifetime
         ["DELETE", "/products/11111111-1111-1111-1111-111111111111/attributes/22222222-2222-2222-2222-222222222222"],
         ["POST", "/products/11111111-1111-1111-1111-111111111111/relations"],
         ["DELETE", "/products/11111111-1111-1111-1111-111111111111/relations/22222222-2222-2222-2222-222222222222"],
+        ["GET", "/products/admin"],
+        ["POST", "/products/11111111-1111-1111-1111-111111111111/status"],
+        ["POST", "/products/11111111-1111-1111-1111-111111111111/images/22222222-2222-2222-2222-222222222222/primary"],
+        ["PUT", "/products/11111111-1111-1111-1111-111111111111/images/order"],
+        ["PUT", "/products/11111111-1111-1111-1111-111111111111/model"],
+        ["DELETE", "/products/11111111-1111-1111-1111-111111111111/model"],
         ["GET", "/products/admin/audit"],
         ["GET", "/auth/admin/audit"]
     ];
@@ -88,6 +94,7 @@ public class GatewayAccessTests : IAsyncLifetime
     [
         ["GET", "/products"],
         ["GET", "/products/11111111-1111-1111-1111-111111111111"],
+        ["GET", "/products/11111111-1111-1111-1111-111111111111/model"],
         ["GET", "/inventory/11111111-1111-1111-1111-111111111111"],
         ["POST", "/orders"],
         ["POST", "/auth/login"]

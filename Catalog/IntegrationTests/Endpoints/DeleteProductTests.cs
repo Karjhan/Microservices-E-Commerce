@@ -14,7 +14,7 @@ public class DeleteProductTests : IntegrationTestBase
     {
         var productId = await CreateProduct();
 
-        var response = await Client.DeleteAsync($"/products/{productId}");
+        var response = await Client.DeleteAsync($"/products/{productId}?confirm=true");
 
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
     }
@@ -34,7 +34,7 @@ public class DeleteProductTests : IntegrationTestBase
         addRelation.EnsureSuccessStatusCode();
 
         // Act
-        var deleteResponse = await Client.DeleteAsync($"/products/{productAId}");
+        var deleteResponse = await Client.DeleteAsync($"/products/{productAId}?confirm=true");
         deleteResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         // Assert
@@ -59,7 +59,7 @@ public class DeleteProductTests : IntegrationTestBase
         addAttr.EnsureSuccessStatusCode();
 
         // Act
-        var deleteResponse = await Client.DeleteAsync($"/products/{productId}");
+        var deleteResponse = await Client.DeleteAsync($"/products/{productId}?confirm=true");
         deleteResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         // Assert

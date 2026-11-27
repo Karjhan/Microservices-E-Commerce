@@ -1,8 +1,10 @@
 using System.Text.Json;
+using Application.Abstractions.Storage;
 using Application.DependencyInjection;
 using Catalog.Endpoints.Health;
 using Catalog.Endpoints.Products;
 using Catalog.Middleware;
+using Infrastructure.BackgroundJobs;
 using Infrastructure.Configuration;
 using Infrastructure.DependencyInjection;
 using Infrastructure.Persistence;
@@ -53,6 +55,9 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 
 if (!isTesting)
 {
+    // Removes storage objects no row refers to, e.g. after an interrupted upload (research R8).
+    builder.Services.AddHostedService<OrphanedObjectSweepJob>();
+
     var config = builder.Configuration;
 
     var healthChecks = builder.Services.AddHealthChecks();
@@ -93,6 +98,7 @@ var app = builder.Build();
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseMiddleware<ExceptionMiddleware>();
+app.UseMiddleware<RequestBodyLimitMiddleware>();
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -117,6 +123,11 @@ if (!isTesting && isDevelopment)
         await minio.MakeBucketAsync(
             new MakeBucketArgs().WithBucket(options.Bucket));
     }
+
+    // The private bucket for 3D models (research R8).
+    await scope.ServiceProvider
+        .GetRequiredService<IFileStorageService>()
+        .EnsureBucketsAsync();
 }
 
 if (!isTesting)
@@ -153,6 +164,13 @@ products.MapGetProducts();
 products.MapUpdateProduct();
 products.MapUploadProductImage();
 products.MapDeleteProductImage();
+products.MapSetPrimaryImage();
+products.MapReorderImages();
+products.MapSetProductStatus();
+products.MapGetAdminProducts();
+products.MapUploadProductModel();
+products.MapGetProductModel();
+products.MapDeleteProductModel();
 products.MapAddProductAttribute();
 products.MapDeleteProductAttribute();
 products.MapGetProductAttributes();

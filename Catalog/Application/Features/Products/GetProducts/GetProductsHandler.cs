@@ -11,20 +11,23 @@ public class GetProductsHandler(IProductRepository repo, ICacheService cache)
 {
     public async Task<PaginatedListDto<ProductDto>> Handle(GetProductsQuery request, CancellationToken ct)
     {
-        var cacheKey = CacheKeyGenerator.ForProducts(request.Filter);
+        // The shopper list only ever shows Active products; admins use the admin list (FR-016).
+        var filter = request.Filter.OnlyActive();
+
+        var cacheKey = CacheKeyGenerator.ForProducts(filter);
 
         var cached = await cache.GetAsync<PaginatedListDto<ProductDto>>(cacheKey);
         if (cached is not null)
             return cached;
 
-        var products = await repo.GetFilteredAsync(request.Filter, ct);
-        var totalCount = await repo.CountAsync(request.Filter, ct);
+        var products = await repo.GetFilteredAsync(filter, ct);
+        var totalCount = await repo.CountAsync(filter, ct);
 
         var result = new PaginatedListDto<ProductDto>
         {
             Items = products.Select(ProductDto.FromEntity).ToList(),
-            Page = request.Filter.Page,
-            PageSize = request.Filter.PageSize,
+            Page = filter.Page,
+            PageSize = filter.PageSize,
             TotalCount = totalCount
         };
 

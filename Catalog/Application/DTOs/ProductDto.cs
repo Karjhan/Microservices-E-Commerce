@@ -30,6 +30,9 @@ public class ProductDto
 
     public List<ProductImageDto> Images { get; init; } = new();
 
+    /// <summary>Metadata only; the short-lived download link comes from GET /products/{id}/model.</summary>
+    public ProductModelDto? Model { get; init; }
+
     public int DownloadCount { get; init; }
     public double AverageRating { get; init; }
 
@@ -79,13 +82,11 @@ public class ProductDto
             }).ToList(),
             SupportedMaterials = product.SupportedMaterials.Select(x => x.ToString()).ToList(),
             CompatiblePrinters = product.CompatiblePrinters.Select(x => x.ToString()).ToList(),
-            Images = product.Images.Select(x => new ProductImageDto
-            {
-                ImageId = x.Id,
-                ObjectKey = x.ObjectKey,
-                Url = x.Url,
-                IsPrimary = x.IsPrimary
-            }).ToList(),
+            Images = product.Images
+                .OrderBy(x => x.SortOrder)
+                .Select(ProductImageDto.FromEntity)
+                .ToList(),
+            Model = product.Model is null ? null : ProductModelDto.FromEntity(product.Model),
             DownloadCount = product.DownloadCount,
             AverageRating = product.AverageRating,
             CreatedAt = product.CreatedAt,

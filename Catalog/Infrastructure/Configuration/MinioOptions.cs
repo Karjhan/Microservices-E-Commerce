@@ -6,5 +6,10 @@ public class MinioOptions
     public string PublicEndpoint { get; set; } = default!;
     public string AccessKey { get; set; } = default!;
     public string SecretKey { get; set; } = default!;
+
     public string Bucket { get; set; } = default!;
+
+    public string ModelBucket { get; set; } = "product-models";
+
+    public string? PresignEndpoint { get; set; }
 }

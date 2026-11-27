@@ -23,6 +23,7 @@ public class ProductRepository : IProductRepository
     {
         return await _context.Products
             .Include(x => x.Images)
+            .Include(x => x.Model)
             .Include(x => x.Attributes)
             .Include(x => x.RelatedProducts)
             .AsSplitQuery()
@@ -62,6 +63,7 @@ public class ProductRepository : IProductRepository
         var query = _context.Products
             .AsNoTracking()
             .Include(x => x.Images)
+            .Include(x => x.Model)
             .Include(x => x.Attributes)
             .Include(x => x.RelatedProducts)
             .AsSplitQuery()
@@ -126,6 +128,98 @@ public class ProductRepository : IProductRepository
     {
         await _context.ProductImages.AddAsync(image, ct);
     }
+
+    public async Task AddModelAsync(ProductModel model, CancellationToken ct)
+    {
+        await _context.ProductModels.AddAsync(model, ct);
+    }
+
+    public void RemoveModel(ProductModel model)
+    {
+        _context.ProductModels.Remove(model);
+    }
+
+    public async Task<bool> NameExistsAsync(string name, Guid? excludeProductId, CancellationToken ct)
+    {
+        var slug = Product.GenerateSlug(name);
+
+        return await _context.Products
+            .AsNoTracking()
+            .Where(x => excludeProductId == null || x.Id != excludeProductId)
+            .AnyAsync(x => EF.Functions.ILike(x.Name, EscapeLike(name)) || x.Slug == slug, ct);
+    }
+
+    public async Task<(List<Product> Items, int TotalCount)> GetAdminPageAsync(
+        AdminProductFilter filter,
+        CancellationToken ct)
+    {
+        var query = _context.Products.AsNoTracking().AsQueryable();
+
+        if (filter.Status.HasValue)
+            query = query.Where(x => x.Status == filter.Status.Value);
+
+        if (filter.CategoryId.HasValue)
+            query = query.Where(x => x.CategoryId == filter.CategoryId.Value);
+
+        if (filter.ProductIds is not null)
+        {
+            var ids = filter.ProductIds;
+            query = query.Where(x => ids.Contains(x.Id));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.Search))
+        {
+            var pattern = $"%{EscapeLike(filter.Search.Trim())}%";
+
+            query = query.Where(x =>
+                EF.Functions.ILike(x.Name, pattern) ||
+                EF.Functions.ILike(x.ShortDescription, pattern));
+        }
+
+        var total = await query.CountAsync(ct);
+
+        query = (filter.SortBy, filter.Descending) switch
+        {
+            (AdminProductSort.Name, false) => query.OrderBy(x => x.Name),
+            (AdminProductSort.Name, true) => query.OrderByDescending(x => x.Name),
+            (AdminProductSort.Price, false) => query.OrderBy(x => x.Price),
+            (AdminProductSort.Price, true) => query.OrderByDescending(x => x.Price),
+            (AdminProductSort.Status, false) => query.OrderBy(x => x.Status),
+            (AdminProductSort.Status, true) => query.OrderByDescending(x => x.Status),
+            (AdminProductSort.CreatedAt, false) => query.OrderBy(x => x.CreatedAt),
+            _ => query.OrderByDescending(x => x.CreatedAt)
+        };
+
+        // A stable tiebreaker keeps pages from overlapping when the sort key repeats.
+        var ordered = ((IOrderedQueryable<Product>)query).ThenBy(x => x.Id);
+
+        var page = Math.Max(1, filter.Page);
+        var pageSize = Math.Clamp(filter.PageSize, 1, AdminProductFilter.MaxPageSize);
+
+        var items = await ordered
+            .Include(x => x.Images)
+            .Include(x => x.Model)
+            .Include(x => x.Attributes)
+            .Include(x => x.RelatedProducts)
+            .AsSplitQuery()
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct);
+
+        return (items, total);
+    }
+
+    public async Task<(HashSet<string> ImageKeys, HashSet<string> ModelKeys)> GetReferencedObjectKeysAsync(
+        CancellationToken ct)
+    {
+        var imageKeys = await _context.ProductImages.AsNoTracking().Select(x => x.ObjectKey).ToListAsync(ct);
+        var modelKeys = await _context.ProductModels.AsNoTracking().Select(x => x.ObjectKey).ToListAsync(ct);
+
+        return (imageKeys.ToHashSet(), modelKeys.ToHashSet());
+    }
+
+    private static string EscapeLike(string value) =>
+        value.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
 
     public async Task DeleteImageAsync(Guid productId, Guid imageId, CancellationToken ct)
     {

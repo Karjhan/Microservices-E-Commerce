@@ -5,6 +5,8 @@ export interface ApiError {
   detail?: string;
   code: string;
   details?: Record<string, unknown>;
+  /** Per-field messages on a 400 `validation_failed` response. */
+  errors?: Record<string, string[]>;
 }
 
 export interface PaginatedResponse<T> {

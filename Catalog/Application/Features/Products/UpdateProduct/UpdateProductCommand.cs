@@ -17,10 +17,7 @@ public record UpdateProductCommand(
 
     string[]? Tags,
     MaterialType[]? SupportedMaterials,
-    PrinterType[]? CompatiblePrinters,
-    
-    int? DownloadCount,
-    double? AverageRating
+    PrinterType[]? CompatiblePrinters
 ) : IRequest, IAuditedRequest
 {
     string IAuditedRequest.AuditAction => "product.update";

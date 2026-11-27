@@ -7,6 +7,8 @@ from app.vector.qdrant_client import get_qdrant_client
 
 logger = get_logger(__name__)
 
+ACTIVE_STATUS = "Active"
+
 
 class VectorStore:
     def __init__(self, embedding_provider: EmbeddingProvider) -> None:
@@ -49,6 +51,15 @@ class VectorStore:
         )
         logger.info("Deleted product from Qdrant", product_id=product_id)
 
+    async def set_status(self, product_id: str, status: str) -> None:
+        """Update only the stored status; the embedding does not depend on it."""
+        self._client.set_payload(
+            collection_name=self._collection,
+            payload={"status": status},
+            points=[product_id],
+        )
+        logger.info("Updated product status in Qdrant", product_id=product_id, status=status)
+
     async def hybrid_search(
         self,
         query_text: str,
@@ -57,6 +68,9 @@ class VectorStore:
     ) -> list[dict]:
         dense_vector = await self._embeddings.embed_text(query_text)
         sparse_vector = await self._embeddings.embed_sparse(query_text)
+
+        # Shoppers only ever see Active products (FR-016); callers may narrow further but not widen.
+        filters = {**(filters or {}), "status": ACTIVE_STATUS}
 
         must_conditions = []
         if filters:
@@ -148,7 +162,13 @@ class VectorStore:
             query=dense_vector,
             using="dense",
             query_filter=models.Filter(
-                must_not=[models.HasIdCondition(has_id=[product_id])]
+                must=[
+                    models.FieldCondition(
+                        key="status",
+                        match=models.MatchValue(value=ACTIVE_STATUS),
+                    )
+                ],
+                must_not=[models.HasIdCondition(has_id=[product_id])],
             ),
             limit=limit,
         )

@@ -527,6 +527,12 @@ async def create_product(
 ) -> str:
     payload = {k: v for k, v in product.items() if k not in ("attributes", "stock")}
     resp = await client.post(f"{gateway}/products", json=payload, headers=auth_headers(admin))
+    if resp.status_code == 400 and "already exists" in resp.text:
+        # Product names are unique, so a re-run finds the product from the previous run.
+        existing = await find_product(client, gateway, product["name"], admin)
+        if existing is not None:
+            print(f"  = Product '{product['name']}' already exists → {existing['id']}")
+            return existing["id"]
     if resp.status_code not in (200, 201):
         raise RuntimeError(f"Create product '{product['name']}' failed: {resp.status_code} {resp.text}")
     product_id = resp.json()["productId"]
@@ -534,9 +540,40 @@ async def create_product(
     return product_id
 
 
+async def find_product(
+    client: httpx.AsyncClient, gateway: str, name: str, admin: AuthSession
+) -> dict[str, Any] | None:
+    """Looks a product up by exact name across every status (admin list)."""
+    resp = await client.get(
+        f"{gateway}/products/admin",
+        params={"q": name, "pageSize": 100},
+        headers=auth_headers(admin),
+    )
+    if resp.status_code != 200:
+        return None
+    return next((p for p in resp.json().get("items", []) if p["name"].lower() == name.lower()), None)
+
+
+async def publish_product(
+    client: httpx.AsyncClient, gateway: str, product_id: str, product_name: str, admin: AuthSession
+) -> None:
+    """Products are created as drafts and invisible to shoppers until published."""
+    resp = await client.post(
+        f"{gateway}/products/{product_id}/status",
+        json={"status": "Active"},
+        headers=auth_headers(admin),
+    )
+    if resp.status_code != 200:
+        raise RuntimeError(f"Publish '{product_name}' failed: {resp.status_code} {resp.text}")
+
+
 async def upload_placeholder_image(
     client: httpx.AsyncClient, gateway: str, product_id: str, product_name: str, admin: AuthSession
 ) -> str | None:
+    current = await client.get(f"{gateway}/products/{product_id}", headers=auth_headers(admin))
+    if current.status_code == 200 and current.json().get("images"):
+        return current.json()["images"][0]["url"]  # already has an image from a previous run
+
     files = {"file": (f"{product_name[:30].replace(' ', '-')}.png", TINY_PNG, "image/png")}
     data = {"isPrimary": "true"}
     resp = await client.post(
@@ -545,7 +582,7 @@ async def upload_placeholder_image(
         data=data,
         headers=auth_headers(admin),
     )
-    if resp.status_code != 200:
+    if resp.status_code not in (200, 201):
         print(f"    ⚠ Image upload skipped for {product_name}: {resp.status_code}")
         return None
     url = resp.json().get("url")
@@ -670,6 +707,7 @@ async def seed(
         for product in PRODUCTS:
             product_id = await create_product(client, gateway_url, product, admin)
             image_url = await upload_placeholder_image(client, gateway_url, product_id, product["name"], admin)
+            await publish_product(client, gateway_url, product_id, product["name"], admin)
             created[product["name"]] = SeededProduct(
                 product_id=product_id,
                 name=product["name"],

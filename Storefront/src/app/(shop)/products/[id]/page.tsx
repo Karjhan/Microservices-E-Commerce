@@ -14,6 +14,9 @@ import { useInventory } from '@/hooks/queries/use-inventory';
 import { AvailabilityBadge } from '@/components/products/availability-badge';
 import { ProductRecommendations } from '@/components/products/product-recommendations';
 import { ProductViewerSkeleton } from '@/components/products/product-viewer-skeleton';
+import { useProductModel } from '@/hooks/queries/use-admin-products';
+import { formatFileSize } from '@/schemas/product';
+import type { ProductModel } from '@/types/product';
 import { formatCurrency, resolveMediaUrl } from '@/lib/utils';
 import dynamic from 'next/dynamic';
 
@@ -21,6 +24,38 @@ const ProductViewer = dynamic(
   () => import('@/components/products/product-viewer').then((m) => m.ProductViewer),
   { ssr: false, loading: () => <ProductViewerSkeleton /> }
 );
+
+const ModelInfoCard = dynamic(
+  () => import('@/components/products/product-viewer').then((m) => m.ModelInfoCard),
+  { ssr: false }
+);
+
+function ModelPreview({ productId, model }: { productId: string; model: ProductModel }) {
+  const { data, isLoading } = useProductModel(productId, model.isPreviewable);
+
+  if (!model.isPreviewable) {
+    return (
+      <div>
+        <h2 className="text-xl font-semibold mb-3">3D Model</h2>
+        <ModelInfoCard
+          filename={model.originalFilename}
+          format={model.format}
+          sizeLabel={formatFileSize(model.sizeBytes)}
+        />
+      </div>
+    );
+  }
+
+  if (isLoading) return <ProductViewerSkeleton />;
+  if (!data?.url) return null;
+
+  return (
+    <div>
+      <h2 className="text-xl font-semibold mb-3">3D Preview</h2>
+      <ProductViewer modelUrl={data.url} format={model.format} />
+    </div>
+  );
+}
 
 function formatSetting(value: number | null | undefined, suffix = '') {
   return value == null ? '—' : `${value}${suffix}`;
@@ -151,12 +186,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
         </div>
       </div>
 
-      {(product as any).model3dUrl && (
-        <div>
-          <h2 className="text-xl font-semibold mb-3">3D Preview</h2>
-          <ProductViewer modelUrl={(product as any).model3dUrl} />
-        </div>
-      )}
+      {product.model && <ModelPreview productId={product.id} model={product.model} />}
 
       {product.longDescription && (
         <div>

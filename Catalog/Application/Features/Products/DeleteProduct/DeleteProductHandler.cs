@@ -1,6 +1,8 @@
 using Application.Abstractions.Messaging;
 using Application.Abstractions.Storage;
+using Application.Common;
 using Contracts.Events;
+using Domain.Exceptions;
 using Infrastructure.Abstractions.Caching;
 using Infrastructure.Abstractions.Persistence;
 using MediatR;
@@ -11,25 +13,36 @@ public class DeleteProductHandler(
     IProductRepository repo,
     IFileStorageService storage,
     IEventPublisher publisher,
-    ICacheService cache)
+    ICacheService cache,
+    IAfterCommit afterCommit)
     : IRequestHandler<DeleteProductCommand>
 {
     public async Task Handle(DeleteProductCommand request, CancellationToken ct)
     {
+        if (!request.Confirm)
+            throw new ValidationFailedException("confirm", "Deleting a product must be confirmed (confirm=true).");
+
         var product = await repo.GetByIdAsync(request.ProductId, ct);
 
         if (product is null)
             throw new KeyNotFoundException("Product not found");
 
-        foreach (var image in product.Images)
-        {
-            await storage.DeleteAsync(image.ObjectKey);
-        }
+        var imageKeys = product.Images.Select(x => x.ObjectKey).ToList();
+        var modelKey = product.Model?.ObjectKey;
 
         var incomingRelations = await repo.RemoveIncomingRelationsAsync(product.Id, ct);
 
         await repo.DeleteAsync(product, ct);
         await repo.SaveChangesAsync(ct);
+
+        afterCommit.Register(async token =>
+        {
+            foreach (var key in imageKeys)
+                await storage.DeleteAsync(StorageBucket.Images, key, token);
+
+            if (modelKey is not null)
+                await storage.DeleteAsync(StorageBucket.Models, modelKey, token);
+        });
 
         foreach (var attribute in product.Attributes)
         {
@@ -65,6 +78,12 @@ public class DeleteProductHandler(
 
         await cache.RemoveAsync($"product:{product.Id}");
         await cache.RemoveByPrefixAsync("products:");
+
+        afterCommit.Register(async _ =>
+        {
+            await cache.RemoveAsync($"product:{product.Id}");
+            await cache.RemoveByPrefixAsync("products:");
+        });
 
         await publisher.PublishAsync(new ProductDeleted
         {

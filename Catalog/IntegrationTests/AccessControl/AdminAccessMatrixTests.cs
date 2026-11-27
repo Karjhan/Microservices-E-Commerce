@@ -42,6 +42,12 @@ public class AdminAccessMatrixTests : IntegrationTestBase
         ["delete-attribute", "DELETE", "/products/{p}/attributes/{x}"],
         ["add-relation", "POST", "/products/{p}/relations"],
         ["delete-relation", "DELETE", "/products/{p}/relations/{x}"],
+        ["set-status", "POST", "/products/{p}/status"],
+        ["set-primary-image", "POST", "/products/{p}/images/{x}/primary"],
+        ["reorder-images", "PUT", "/products/{p}/images/order"],
+        ["upload-model", "PUT", "/products/{p}/model"],
+        ["delete-model", "DELETE", "/products/{p}/model"],
+        ["admin-list", "GET", "/products/admin"],
         ["audit", "GET", "/products/admin/audit"]
     ];
 
@@ -104,6 +110,7 @@ public class AdminAccessMatrixTests : IntegrationTestBase
     public async Task Public_reads_stay_open_to_anonymous_callers()
     {
         var productId = await CreateProductAsAdmin($"matrix-public-{Guid.NewGuid():N}");
+        (await Client.PostAsJsonAsync($"/products/{productId}/status", new { status = "Active" })).EnsureSuccessStatusCode();
         using var anonymous = Factory.CreateClient();
 
         (await anonymous.GetAsync("/products?page=1&pageSize=20")).StatusCode.Should().Be(HttpStatusCode.OK);
@@ -141,7 +148,7 @@ public class AdminAccessMatrixTests : IntegrationTestBase
         var name = $"audited-{Guid.NewGuid():N}";
         var productId = await CreateProductAsAdmin(name);
 
-        var delete = await Client.DeleteAsync($"/products/{productId}");
+        var delete = await Client.DeleteAsync($"/products/{productId}?confirm=true");
         delete.EnsureSuccessStatusCode();
 
         var audit = await Client.GetFromJsonAsync<JsonElement>("/products/admin/audit?pageSize=100");
@@ -186,6 +193,15 @@ public class AdminAccessMatrixTests : IntegrationTestBase
                 var file = new ByteArrayContent(TinyPng);
                 file.Headers.ContentType = MediaTypeHeaderValue.Parse("image/png");
                 request.Content = new MultipartFormDataContent { { file, "file", "pixel.png" }, { new StringContent("true"), "isPrimary" } };
+                break;
+            case "set-status":
+                request.Content = JsonBody(new { status = "Active" });
+                break;
+            case "reorder-images":
+                request.Content = JsonBody(new { imageIds = Array.Empty<Guid>() });
+                break;
+            case "upload-model":
+                request.Content = new MultipartFormDataContent { { new ByteArrayContent([1, 2, 3]), "file", "part.glb" } };
                 break;
             case "add-attribute":
                 request.Content = JsonBody(new { key = "Color", value = "Red" });

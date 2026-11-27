@@ -17,6 +17,12 @@ MERGE (p)-[:BELONGS_TO]->(c)
 RETURN p
 """
 
+SET_PRODUCT_STATUS = """
+MATCH (p:Product {id: $id})
+SET p.status = $status
+RETURN p
+"""
+
 DELETE_PRODUCT = """
 MATCH (p:Product {id: $id})
 DETACH DELETE p
@@ -107,6 +113,8 @@ WITH
     collect(DISTINCT mat_neighbor) AS all_mat_neighbors,
     collect(DISTINCT printer_neighbor) AS all_printer_neighbors
 UNWIND (all_related + all_neighbors + all_mat_neighbors + all_printer_neighbors) AS candidate
+WITH candidate
+WHERE candidate.status = 'Active'
 RETURN DISTINCT candidate.id AS product_id,
        candidate.name AS name,
        candidate.slug AS slug,

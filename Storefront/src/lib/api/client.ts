@@ -7,11 +7,21 @@ export class ApiClientError extends Error {
   constructor(
     public status: number,
     public code: string,
-    public details?: Record<string, unknown>
+    public details?: Record<string, unknown>,
+    public fieldErrors?: Record<string, string[]>,
+    public detail?: string
   ) {
-    super(`API Error: ${code}`);
+    super(detail || `API Error: ${code}`);
     this.name = 'ApiClientError';
   }
+}
+
+export function errorMessage(error: unknown, fallback = 'Something went wrong. Please try again.'): string {
+  if (error instanceof ApiClientError) {
+    if (error.status === 403) return FORBIDDEN_MESSAGE;
+    return error.detail || fallback;
+  }
+  return fallback;
 }
 
 async function getAuthToken(): Promise<string | null> {
@@ -64,7 +74,10 @@ async function handleResponse<T>(response: Response): Promise<T> {
     throw new ApiClientError(
       response.status,
       errorBody.code || `HTTP_${response.status}`,
-      errorBody.details
+      errorBody.details,
+      errorBody.errors,
+      errorBody.detail ||
+        (typeof errorBody.error === 'string' && errorBody.error !== 'Unknown error' ? errorBody.error : undefined)
     );
   }
 
@@ -147,6 +160,19 @@ export async function apiDelete<T>(path: string, options: RequestOptions = {}): 
 }
 
 export async function apiPostFormData<T>(path: string, formData: FormData, options: RequestOptions = {}): Promise<T> {
+  return sendFormData<T>('POST', path, formData, options);
+}
+
+export async function apiPutFormData<T>(path: string, formData: FormData, options: RequestOptions = {}): Promise<T> {
+  return sendFormData<T>('PUT', path, formData, options);
+}
+
+async function sendFormData<T>(
+  method: 'POST' | 'PUT',
+  path: string,
+  formData: FormData,
+  options: RequestOptions
+): Promise<T> {
   const token = options.skipAuth ? null : await getAuthToken();
   const headers: Record<string, string> = {
     'X-Correlation-Id': generateCorrelationId(),
@@ -155,7 +181,7 @@ export async function apiPostFormData<T>(path: string, formData: FormData, optio
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    method: 'POST',
+    method,
     headers,
     body: formData,
     signal: options.signal,

@@ -11,6 +11,7 @@ from app.graph.neo4j_client import ensure_constraints
 from app.ingestion.handlers.product_created_handler import ProductCreatedHandler
 from app.ingestion.handlers.product_updated_handler import ProductUpdatedHandler
 from app.ingestion.handlers.product_deleted_handler import ProductDeletedHandler
+from app.ingestion.handlers.product_status_changed_handler import ProductStatusChangedHandler
 from app.ingestion.handlers.relation_handler import (
     RelationAddedHandler,
     RelationDeletedHandler,
@@ -28,6 +29,7 @@ ROUTING_KEY_MAP = {
     "product.created": "ProductCreated",
     "product.updated": "ProductUpdated",
     "product.deleted": "ProductDeleted",
+    "product.status.changed": "ProductStatusChanged",
     "product.relation.added": "ProductRelationAdded",
     "product.relation.deleted": "ProductRelationDeleted",
     "product.attribute.added": "ProductAttributeAdded",
@@ -49,6 +51,7 @@ class EventConsumer:
             "ProductCreated": ProductCreatedHandler(vector_store, graph_repo),
             "ProductUpdated": ProductUpdatedHandler(vector_store, graph_repo),
             "ProductDeleted": ProductDeletedHandler(vector_store, graph_repo),
+            "ProductStatusChanged": ProductStatusChangedHandler(vector_store, graph_repo),
             "ProductRelationAdded": RelationAddedHandler(graph_repo),
             "ProductRelationDeleted": RelationDeletedHandler(graph_repo),
             "ProductAttributeAdded": AttributeAddedHandler(vector_store, graph_repo),

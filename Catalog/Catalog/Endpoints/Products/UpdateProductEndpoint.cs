@@ -25,9 +25,7 @@ public static class UpdateProductEndpoint
                 request.Size,
                 request.Tags,
                 request.SupportedMaterials,
-                request.CompatiblePrinters,
-                request.DownloadCount,
-                request.AverageRating
+                request.CompatiblePrinters
             );
 
             await mediator.Send(command);
@@ -53,8 +51,5 @@ public record UpdateProductRequest(
 
     string[]? Tags = null,
     MaterialType[]? SupportedMaterials = null,
-    PrinterType[]? CompatiblePrinters = null,
-    
-    int DownloadCount = 0,
-    double AverageRating = 0
+    PrinterType[]? CompatiblePrinters = null
 );

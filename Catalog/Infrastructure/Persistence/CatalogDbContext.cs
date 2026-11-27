@@ -12,6 +12,7 @@ public class CatalogDbContext : DbContext
 
     public DbSet<Product> Products => Set<Product>();
     public DbSet<ProductImage> ProductImages => Set<ProductImage>();
+    public DbSet<ProductModel> ProductModels => Set<ProductModel>();
     
     public DbSet<ProductAttribute> ProductAttributes => Set<ProductAttribute>();
     public DbSet<ProductRelation> ProductRelations => Set<ProductRelation>();

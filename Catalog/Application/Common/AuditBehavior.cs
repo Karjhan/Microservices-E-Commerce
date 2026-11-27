@@ -13,17 +13,20 @@ public class AuditBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TR
     private readonly CatalogDbContext _db;
     private readonly IAuditWriter _audit;
     private readonly ICurrentUser _user;
+    private readonly IAfterCommit _afterCommit;
     private readonly ILogger<AuditBehavior<TRequest, TResponse>> _logger;
 
     public AuditBehavior(
         CatalogDbContext db,
         IAuditWriter audit,
         ICurrentUser user,
+        IAfterCommit afterCommit,
         ILogger<AuditBehavior<TRequest, TResponse>> logger)
     {
         _db = db;
         _audit = audit;
         _user = user;
+        _afterCommit = afterCommit;
         _logger = logger;
     }
 
@@ -54,10 +57,14 @@ public class AuditBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TR
             await _db.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
 
+            // Only now is it safe to remove replaced files and clear caches.
+            await _afterCommit.RunAsync(cancellationToken);
+
             return response;
         }
         catch (Exception ex)
         {
+            _afterCommit.Clear();
             await RollbackQuietly(transaction);
             await RecordFailure(audited, ex);
             throw;

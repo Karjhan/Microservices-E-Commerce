@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import { useState } from 'react';
+import { ImageOff } from 'lucide-react';
 import { cn, resolveMediaUrl } from '@/lib/utils';
 import type { ProductImage } from '@/types/product';
 
@@ -11,18 +12,26 @@ interface ProductGalleryProps {
 }
 
 export function ProductGallery({ images, productName }: ProductGalleryProps) {
-  const sorted = [...images].sort((a, b) => (b.isPrimary ? 1 : 0) - (a.isPrimary ? 1 : 0));
+  // Primary first, then the order the admin chose.
+  const sorted = [...images].sort(
+    (a, b) => (b.isPrimary ? 1 : 0) - (a.isPrimary ? 1 : 0) || (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
+  );
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const selected = sorted[selectedIndex];
-  const imageSrc = resolveMediaUrl(selected.url);
+  const selected = sorted[Math.min(selectedIndex, sorted.length - 1)];
 
-  if (sorted.length === 0) {
+  if (!selected) {
     return (
-      <div className="aspect-square rounded-lg bg-muted flex items-center justify-center text-muted-foreground">
-        No images available
+      <div
+        className="aspect-square rounded-lg bg-muted flex flex-col items-center justify-center gap-2 text-muted-foreground"
+        data-testid="gallery-placeholder"
+      >
+        <ImageOff className="h-10 w-10" aria-hidden />
+        <span>No images available</span>
       </div>
     );
   }
+
+  const imageSrc = resolveMediaUrl(selected.url);
 
   return (
     <div className="space-y-4">

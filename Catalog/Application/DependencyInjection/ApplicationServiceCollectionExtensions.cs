@@ -13,6 +13,9 @@ public static class ApplicationServiceCollectionExtensions
             cfg.RegisterServicesFromAssembly(typeof(ApplicationServiceCollectionExtensions).Assembly);
         });
 
+        services.AddScoped<IAfterCommit, AfterCommitQueue>();
+        services.AddScoped<ProductCacheInvalidator>();
+
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(AuditBehavior<,>));
 

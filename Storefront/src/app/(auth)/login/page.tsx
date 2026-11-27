@@ -34,7 +34,6 @@ export default function LoginPage() {
       if (result?.error) {
         setError('Invalid email or password');
       } else {
-        // Return to where the visitor was sent from, but only to a path on this site.
         const callbackUrl = new URLSearchParams(window.location.search).get('callbackUrl');
         const target =
           callbackUrl && callbackUrl.startsWith('/') && !callbackUrl.startsWith('//')

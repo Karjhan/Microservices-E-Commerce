@@ -28,6 +28,8 @@ export const queryKeys = {
     list: (filters: object) => [...queryKeys.products.lists(), filters] as const,
     details: () => [...queryKeys.products.all, 'detail'] as const,
     detail: (idOrSlug: string) => [...queryKeys.products.details(), idOrSlug] as const,
+    admin: (filters: object) => [...queryKeys.products.all, 'admin', filters] as const,
+    model: (id: string) => [...queryKeys.products.all, 'model', id] as const,
   },
   orders: {
     all: ['orders'] as const,

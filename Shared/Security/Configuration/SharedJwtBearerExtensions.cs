@@ -9,10 +9,6 @@ namespace Shared.Security.Configuration;
 
 public static class SharedJwtBearerExtensions
 {
-    /// <summary>
-    /// Validates issuer, audience, lifetime and signing key using the <c>Jwt</c> section.
-    /// Used by every service and the gateway so the rules cannot drift (FR-001, FR-005).
-    /// </summary>
     public static IServiceCollection AddSharedJwtBearer(this IServiceCollection services, IConfiguration configuration)
     {
         var options = configuration.GetSection(SharedJwtOptions.SectionName).Get<SharedJwtOptions>()

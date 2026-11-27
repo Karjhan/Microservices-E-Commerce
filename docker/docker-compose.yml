@@ -62,6 +62,11 @@ services:
       Minio__PublicEndpoint: http://minio:9000
       Minio__AccessKey: ${MINIO_ROOT_USER}
       Minio__SecretKey: ${MINIO_ROOT_PASSWORD}
+      Minio__Bucket: ${CATALOG_IMAGE_BUCKET:-products}
+      # Private bucket for 3D models; created at startup. Served through short-lived presigned links.
+      Minio__ModelBucket: ${CATALOG_MODEL_BUCKET:-product-models}
+      # Host the browser uses to reach MinIO; presigned links are signed for this host.
+      Minio__PresignEndpoint: http://localhost:${MINIO_PORT}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
     ports:
       - "${CATALOG_PORT}:8080"      

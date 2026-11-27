@@ -22,6 +22,9 @@ public class CatalogApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     private readonly RabbitMqContainer _rabbit;
     private readonly MinioContainer _minio;
 
+    public const string ImageBucket = "products";
+    public const string ModelBucket = "product-models";
+
     public string PostgresConnectionString => _postgres.GetConnectionString();
     public string RedisConnectionString => _redis.GetConnectionString();
 
@@ -100,7 +103,9 @@ public class CatalogApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
                 ["Minio:Endpoint"] = $"localhost:{minioPort}",
                 ["Minio:AccessKey"] = "minioadmin",
                 ["Minio:SecretKey"] = "minioadmin",
-                ["Minio:Bucket"] = "products"
+                ["Minio:Bucket"] = "products",
+                ["Minio:ModelBucket"] = ModelBucket,
+                ["Minio:PresignEndpoint"] = $"http://localhost:{minioPort}"
             });
         });
 
@@ -123,26 +128,41 @@ public class CatalogApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         });
     }
     
+    private MinioClient CreateMinioClient() => (MinioClient)new MinioClient()
+        .WithEndpoint($"{_minio.Hostname}:{_minio.GetMappedPublicPort(9000)}")
+        .WithCredentials("minioadmin", "minioadmin")
+        .WithSSL(false)
+        .Build();
+
+    /// <summary>Keys currently stored in a bucket under a prefix (used to assert on file clean-up).</summary>
+    public async Task<IReadOnlyList<string>> ListKeysAsync(string bucket, string prefix)
+    {
+        var client = CreateMinioClient();
+        var keys = new List<string>();
+
+        await foreach (var item in client.ListObjectsEnumAsync(
+            new ListObjectsArgs().WithBucket(bucket).WithPrefix(prefix).WithRecursive(true)))
+        {
+            keys.Add(item.Key);
+        }
+
+        return keys;
+    }
+
     private async Task WaitForMinio()
     {
-        var endpoint = $"{_minio.Hostname}:{_minio.GetMappedPublicPort(9000)}";
-
-        var client = new MinioClient()
-            .WithEndpoint(endpoint)
-            .WithCredentials("minioadmin", "minioadmin")
-            .WithSSL(false)
-            .Build();
+        var client = CreateMinioClient();
 
         try
         {
-            var exists = await client.BucketExistsAsync(
-                new BucketExistsArgs()
-                    .WithBucket("products"));
-
-            if (!exists)
+            foreach (var bucket in new[] { ImageBucket, ModelBucket })
             {
-                await client.MakeBucketAsync(
-                    new MakeBucketArgs().WithBucket("products"));
+                var exists = await client.BucketExistsAsync(new BucketExistsArgs().WithBucket(bucket));
+
+                if (!exists)
+                {
+                    await client.MakeBucketAsync(new MakeBucketArgs().WithBucket(bucket));
+                }
             }
         }
         catch

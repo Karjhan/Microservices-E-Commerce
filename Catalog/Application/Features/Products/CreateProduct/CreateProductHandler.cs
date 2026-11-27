@@ -1,4 +1,5 @@
 using Application.Abstractions.Messaging;
+using Application.Common;
 using Contracts.Events;
 using Domain.Entities;
 using Infrastructure.Abstractions.Caching;
@@ -15,15 +16,18 @@ public class CreateProductHandler(
 {
     public async Task<Guid> Handle(CreateProductCommand request, CancellationToken ct)
     {
+        await ProductRules.ValidateAsync(repo, null, request.Name, request.Price, request.Currency, ct);
+
+        // New products start as drafts; an admin publishes them when ready (FR-016).
         var product = new Product(
-            request.Name,
+            request.Name.Trim(),
             request.ShortDescription,
             request.LongDescription,
             request.Price,
             request.CategoryId
         );
 
-        product.SetCurrency(request.Currency);
+        product.SetCurrency(ProductRules.NormalizeCurrency(request.Currency));
         product.SetSettings(request.Settings);
         product.SetSize(request.Size);
 
