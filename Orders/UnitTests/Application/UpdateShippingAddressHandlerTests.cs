@@ -18,7 +18,7 @@ public class UpdateShippingAddressHandlerTests
 
     public UpdateShippingAddressHandlerTests()
     {
-        _handler = new UpdateShippingAddressHandler(_repo.Object, _cache.Object);
+        _handler = new UpdateShippingAddressHandler(_repo.Object, _cache.Object, FakeCurrentUser.Admin());
     }
 
     [Fact]
@@ -78,5 +78,40 @@ public class UpdateShippingAddressHandlerTests
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOrderStateException>(
             () => _handler.Handle(command, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Should_Report_Not_Found_And_Change_Nothing_For_Non_Owner()
+    {
+        var order = TestDataBuilder.CreateFullOrder();
+        var street = order.ShippingAddress!.Street;
+        _repo.Setup(x => x.GetByIdAsync(order.Id, It.IsAny<CancellationToken>())).ReturnsAsync(order);
+
+        var handler = new UpdateShippingAddressHandler(_repo.Object, _cache.Object, FakeCurrentUser.Customer(Guid.NewGuid()));
+        var command = new UpdateShippingAddressCommand(
+            order.Id, "Other Street", "City", "State", "Country", "11111", null, null);
+
+        await Assert.ThrowsAsync<OrderNotFoundException>(() => handler.Handle(command, CancellationToken.None));
+
+        order.ShippingAddress!.Street.Should().Be(street);
+        _repo.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Should_Let_Owner_Update_Their_Own_Address()
+    {
+        var order = TestDataBuilder.CreateFullOrder();
+        _repo.Setup(x => x.GetByIdAsync(order.Id, It.IsAny<CancellationToken>())).ReturnsAsync(order);
+        _repo.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        _cache.Setup(x => x.RemoveAsync(It.IsAny<string>())).Returns(Task.CompletedTask);
+        _cache.Setup(x => x.RemoveByPrefixAsync(It.IsAny<string>())).Returns(Task.CompletedTask);
+
+        var handler = new UpdateShippingAddressHandler(_repo.Object, _cache.Object, FakeCurrentUser.Customer(order.UserId));
+        var command = new UpdateShippingAddressCommand(
+            order.Id, "Mine Street", "City", "State", "Country", "22222", null, null);
+
+        await handler.Handle(command, CancellationToken.None);
+
+        order.ShippingAddress!.Street.Should().Be("Mine Street");
     }
 }

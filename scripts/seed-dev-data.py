@@ -10,12 +10,21 @@ Usage:
 Prerequisites:
     docker compose up -d (api-gateway, auth, catalog, inventory, orders, payments, rabbitmq, ...)
     STRIPE_SECRET_KEY set in docker/.env for payment processing (sk_test_...)
+    The `postgres` container running (the admin role is set directly in the auth database).
+
+Administrative calls (products, images, attributes, relations, stock) require the Admin role.
+The script creates the development administrator (DEV ONLY) the same way it creates the demo
+customers: it registers the account through the public endpoint, then promotes it to Admin with
+a single UPDATE inside the postgres container, because no public endpoint can grant Admin.
+Re-running is safe. Override the account with --admin-email / --admin-password.
 """
 from __future__ import annotations
 
 import argparse
 import asyncio
 import base64
+import os
+import subprocess
 import sys
 import time
 import uuid
@@ -53,6 +62,12 @@ USERS = [
         "profile": "Marco Silva",
     },
 ]
+
+# Development administrator (DEV ONLY, never use these values outside local development)
+ADMIN_USER = {
+    "email": "admin@store.local",
+    "password": "AdminShop2026!",
+}
 
 # 1×1 PNG (transparent) — valid image for MinIO upload smoke test
 TINY_PNG = base64.b64decode(
@@ -458,9 +473,66 @@ def auth_headers(session: AuthSession) -> dict[str, str]:
     return {**correlation_headers(), "Authorization": f"Bearer {session.access_token}"}
 
 
-async def create_product(client: httpx.AsyncClient, gateway: str, product: dict[str, Any]) -> str:
+def promote_to_admin(email: str, container: str, db_user: str, db_name: str) -> None:
+    """Set the account's role to Admin directly in the auth database (dev only).
+
+    The public API cannot create administrators, so the dev admin is promoted with one UPDATE.
+    """
+    normalized = email.strip().lower().replace("'", "''")
+    sql = f"UPDATE \"Users\" SET \"Role\" = 'Admin' WHERE \"NormalizedEmail\" = '{normalized}';"
+    try:
+        result = subprocess.run(
+            ["docker", "exec", container, "psql", "-U", db_user, "-d", db_name, "-v", "ON_ERROR_STOP=1", "-c", sql],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except FileNotFoundError:
+        print("✗ The docker CLI was not found; it is needed to promote the dev admin.")
+        sys.exit(1)
+    if result.returncode != 0 or "UPDATE 1" not in result.stdout:
+        print(f"✗ Could not promote {email} to Admin in container '{container}' (database '{db_name}').")
+        print(f"  {(result.stderr or result.stdout).strip()}")
+        print("  Check --postgres-container / --postgres-user / --postgres-db match docker/.env.")
+        sys.exit(1)
+
+
+async def ensure_admin(
+    client: httpx.AsyncClient,
+    gateway: str,
+    email: str,
+    password: str,
+    container: str,
+    db_user: str,
+    db_name: str,
+) -> AuthSession:
+    """Create the dev admin if needed, promote it to Admin, and return a session carrying the Admin role."""
+    await ensure_user(client, gateway, email, password)
+    promote_to_admin(email, container, db_user, db_name)
+
+    # Sign in again: the role is part of the access token, so the earlier token is stale.
+    login = await client.post(
+        f"{gateway}/auth/login",
+        json={"email": email, "password": password},
+        headers=correlation_headers(),
+    )
+    login.raise_for_status()
+    token = login.json()["accessToken"]
+    user_id = _user_id_from_token(token)
+    print(f"  ✓ Admin ready: {email} → {user_id}")
+    return AuthSession(user_id=user_id, email=email, access_token=token)
+
+async def create_product(
+    client: httpx.AsyncClient, gateway: str, product: dict[str, Any], admin: AuthSession
+) -> str:
     payload = {k: v for k, v in product.items() if k not in ("attributes", "stock")}
-    resp = await client.post(f"{gateway}/products", json=payload, headers=correlation_headers())
+    resp = await client.post(f"{gateway}/products", json=payload, headers=auth_headers(admin))
+    if resp.status_code == 400 and "already exists" in resp.text:
+        # Product names are unique, so a re-run finds the product from the previous run.
+        existing = await find_product(client, gateway, product["name"], admin)
+        if existing is not None:
+            print(f"  = Product '{product['name']}' already exists → {existing['id']}")
+            return existing["id"]
     if resp.status_code not in (200, 201):
         raise RuntimeError(f"Create product '{product['name']}' failed: {resp.status_code} {resp.text}")
     product_id = resp.json()["productId"]
@@ -468,18 +540,49 @@ async def create_product(client: httpx.AsyncClient, gateway: str, product: dict[
     return product_id
 
 
+async def find_product(
+    client: httpx.AsyncClient, gateway: str, name: str, admin: AuthSession
+) -> dict[str, Any] | None:
+    """Looks a product up by exact name across every status (admin list)."""
+    resp = await client.get(
+        f"{gateway}/products/admin",
+        params={"q": name, "pageSize": 100},
+        headers=auth_headers(admin),
+    )
+    if resp.status_code != 200:
+        return None
+    return next((p for p in resp.json().get("items", []) if p["name"].lower() == name.lower()), None)
+
+
+async def publish_product(
+    client: httpx.AsyncClient, gateway: str, product_id: str, product_name: str, admin: AuthSession
+) -> None:
+    """Products are created as drafts and invisible to shoppers until published."""
+    resp = await client.post(
+        f"{gateway}/products/{product_id}/status",
+        json={"status": "Active"},
+        headers=auth_headers(admin),
+    )
+    if resp.status_code != 200:
+        raise RuntimeError(f"Publish '{product_name}' failed: {resp.status_code} {resp.text}")
+
+
 async def upload_placeholder_image(
-    client: httpx.AsyncClient, gateway: str, product_id: str, product_name: str
+    client: httpx.AsyncClient, gateway: str, product_id: str, product_name: str, admin: AuthSession
 ) -> str | None:
+    current = await client.get(f"{gateway}/products/{product_id}", headers=auth_headers(admin))
+    if current.status_code == 200 and current.json().get("images"):
+        return current.json()["images"][0]["url"]  # already has an image from a previous run
+
     files = {"file": (f"{product_name[:30].replace(' ', '-')}.png", TINY_PNG, "image/png")}
     data = {"isPrimary": "true"}
     resp = await client.post(
         f"{gateway}/products/{product_id}/images",
         files=files,
         data=data,
-        headers=correlation_headers(),
+        headers=auth_headers(admin),
     )
-    if resp.status_code != 200:
+    if resp.status_code not in (200, 201):
         print(f"    ⚠ Image upload skipped for {product_name}: {resp.status_code}")
         return None
     url = resp.json().get("url")
@@ -487,11 +590,13 @@ async def upload_placeholder_image(
     return url
 
 
-async def adjust_inventory(client: httpx.AsyncClient, gateway: str, product_id: str, delta: int) -> None:
+async def adjust_inventory(
+    client: httpx.AsyncClient, gateway: str, product_id: str, delta: int, admin: AuthSession
+) -> None:
     resp = await client.post(
         f"{gateway}/inventory/{product_id}/adjustments",
         json={"delta": delta, "reason": "Initial warehouse stock for dev seed"},
-        headers=correlation_headers(),
+        headers=auth_headers(admin),
     )
     if resp.status_code != 200:
         raise RuntimeError(f"Inventory adjust failed for {product_id}: {resp.status_code} {resp.text}")
@@ -561,7 +666,15 @@ async def process_payment(
 # ── Main seed orchestration ──────────────────────────────────────────────────
 
 
-async def seed(gateway_url: str, skip_payments: bool) -> None:
+async def seed(
+    gateway_url: str,
+    skip_payments: bool,
+    admin_email: str,
+    admin_password: str,
+    pg_container: str,
+    pg_user: str,
+    pg_db: str,
+) -> None:
     print(f"\n{'=' * 60}")
     print(f"Seeding dev data via API Gateway: {gateway_url}")
     print(f"{'=' * 60}\n")
@@ -586,11 +699,15 @@ async def seed(gateway_url: str, skip_payments: bool) -> None:
         emilia = sessions["emilia.kowalski@example.com"]
         marco = sessions["marco.silva@example.com"]
 
+        # Administrative operations need an Admin (dev only; promoted directly in the auth database).
+        admin = await ensure_admin(client, gateway_url, admin_email, admin_password, pg_container, pg_user, pg_db)
+
         # ── 2. Products ──────────────────────────────────────────────────
         print("\n── 2. Catalog products (20) ────────────────────────────────")
         for product in PRODUCTS:
-            product_id = await create_product(client, gateway_url, product)
-            image_url = await upload_placeholder_image(client, gateway_url, product_id, product["name"])
+            product_id = await create_product(client, gateway_url, product, admin)
+            image_url = await upload_placeholder_image(client, gateway_url, product_id, product["name"], admin)
+            await publish_product(client, gateway_url, product_id, product["name"], admin)
             created[product["name"]] = SeededProduct(
                 product_id=product_id,
                 name=product["name"],
@@ -607,7 +724,7 @@ async def seed(gateway_url: str, skip_payments: bool) -> None:
                 resp = await client.post(
                     f"{gateway_url}/products/{seeded.product_id}/attributes",
                     json={"key": key, "value": value},
-                    headers=correlation_headers(),
+                    headers=auth_headers(admin),
                 )
                 if resp.status_code not in (200, 201):
                     print(f"    ⚠ attr {key} on {product['name']}: {resp.status_code}")
@@ -622,14 +739,14 @@ async def seed(gateway_url: str, skip_payments: bool) -> None:
             await client.post(
                 f"{gateway_url}/products/{src.product_id}/relations",
                 json={"relatedProductId": tgt.product_id, "type": rel_type},
-                headers=correlation_headers(),
+                headers=auth_headers(admin),
             )
 
         # ── 5. Inventory ───────────────────────────────────────────────
         print("\n── 5. Inventory stock ──────────────────────────────────────")
         for product in PRODUCTS:
             seeded = created[product["name"]]
-            await adjust_inventory(client, gateway_url, seeded.product_id, product["stock"])
+            await adjust_inventory(client, gateway_url, seeded.product_id, product["stock"], admin)
             print(f"  ✓ {product['name']}: +{product['stock']} on hand")
 
         print(f"\n  ⏳ Waiting {ASYNC_SETTLE_SECONDS}s for GraphRAG ingestion...")
@@ -775,9 +892,12 @@ async def seed(gateway_url: str, skip_payments: bool) -> None:
     print(f"  Orders:    {len(orders)}")
     print(f"  Payments:  {0 if skip_payments else len(orders)}")
     print()
-    print("Login credentials:")
+    print("Customer login credentials:")
     for user in USERS:
         print(f"  • {user['email']} / {user['password']}")
+    print()
+    print("Admin login credentials (DEV ONLY):")
+    print(f"  • {admin_email} / {admin_password}")
     print()
     print("Storefront: http://localhost:3000")
     print(f"Gateway:    {gateway_url}")
@@ -790,9 +910,23 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Seed dev data via API Gateway")
     parser.add_argument("--gateway-url", default=DEFAULT_GATEWAY_URL)
     parser.add_argument("--skip-payments", action="store_true")
+    parser.add_argument("--admin-email", default=ADMIN_USER["email"])
+    parser.add_argument("--admin-password", default=ADMIN_USER["password"])
+    parser.add_argument("--postgres-container", default="postgres", help="Docker container running Postgres")
+    parser.add_argument("--postgres-user", default=os.environ.get("POSTGRES_USER", "postgres"))
+    parser.add_argument("--postgres-db", default=os.environ.get("POSTGRES_DB", "ecommerce"), help="Database used by the auth service")
     args = parser.parse_args()
-    asyncio.run(seed(args.gateway_url, args.skip_payments))
-
+    asyncio.run(
+        seed(
+            args.gateway_url,
+            args.skip_payments,
+            args.admin_email,
+            args.admin_password,
+            args.postgres_container,
+            args.postgres_user,
+            args.postgres_db,
+        )
+    )
 
 if __name__ == "__main__":
     main()

@@ -15,7 +15,6 @@ export function useAuth() {
     role,
     isAuthenticated: status === 'authenticated',
     isLoading: status === 'loading',
-    isStaff: role === 'Admin' || role === 'Manager' || role === 'Support',
     isAdmin: role === 'Admin',
     accessToken: (session as any)?.accessToken as string | undefined,
   };

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Shared.Security.TestSupport;
 using Testcontainers.PostgreSql;
 using Testcontainers.RabbitMq;
 using Testcontainers.Redis;
@@ -99,6 +100,7 @@ public abstract class IntegrationTestBase : IClassFixture<InventoryApiFactory>
     protected IntegrationTestBase(InventoryApiFactory factory)
     {
         Factory = factory;
-        Client = factory.CreateClient();
+        // Admin operations are gated (FR-001), so the default client is an administrator.
+        Client = factory.CreateClient().AsAdmin();
     }
 }

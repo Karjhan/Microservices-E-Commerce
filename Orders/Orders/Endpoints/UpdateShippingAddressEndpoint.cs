@@ -24,7 +24,7 @@ public static class UpdateShippingAddressEndpoint
                 request.Phone), ct);
 
             return Results.NoContent();
-        });
+        }).RequireAuthorization();
 
         return app;
     }

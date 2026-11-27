@@ -2,6 +2,7 @@ using Application.Abstractions.Persistence;
 using Application.Features.Payments.GetPayments;
 using Domain.Enums;
 using MediatR;
+using Shared.Security.Authorization;
 
 namespace Payments.Endpoints;
 
@@ -35,7 +36,7 @@ public static class GetPaymentsEndpoint
 
             var result = await mediator.Send(new GetPaymentsQuery(filter), ct);
             return Results.Ok(result);
-        });
+        }).RequireAuthorization(AuthorizationPolicies.AdminOnly);
 
         return app;
     }

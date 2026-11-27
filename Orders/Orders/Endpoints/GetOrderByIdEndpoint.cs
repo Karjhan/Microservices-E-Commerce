@@ -14,7 +14,7 @@ public static class GetOrderByIdEndpoint
         {
             var result = await mediator.Send(new GetOrderByIdQuery(orderId), ct);
             return Results.Ok(result);
-        });
+        }).RequireAuthorization();
 
         return app;
     }

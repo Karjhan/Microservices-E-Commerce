@@ -1,4 +1,5 @@
 using Auth.Endpoints;
+using Auth.Endpoints.Admin;
 
 namespace Auth.Extensions;
 
@@ -10,5 +11,7 @@ public static class EndpointExtensions
         LoginEndpoint.Map(app);
         RefreshTokenEndpoint.Map(app);
         GoogleLoginEndpoint.Map(app);
+
+        GetAuditEndpoint.Map(app);
     }
 }

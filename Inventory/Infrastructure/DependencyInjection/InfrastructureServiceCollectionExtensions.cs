@@ -1,3 +1,5 @@
+using Infrastructure.Audit;
+using Shared.Security.Audit;
 using Application.Abstractions.Caching;
 using Application.Abstractions.Inventory;
 using Application.Abstractions.Messaging;
@@ -46,6 +48,8 @@ public static class InfrastructureServiceCollectionExtensions
         });
 
         services.AddScoped<IInventoryRepository, InventoryRepository>();
+        services.AddScoped<IAuditWriter, EfAuditWriter>();
+        services.AddScoped<IAuditReader, EfAuditReader>();
         services.AddScoped<IIdempotencyStore, IdempotencyStore>();
         services.AddSingleton<IReservationPolicy, ReservationPolicy>();
 

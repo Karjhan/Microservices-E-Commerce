@@ -109,6 +109,8 @@ public class InventoryRepository : IInventoryRepository
         }
     }
 
+    public void DiscardPendingChanges() => _context.ChangeTracker.Clear();
+
     public async Task<ITransactionScope> BeginTransactionAsync(CancellationToken ct)
     {
         var transaction = await _context.Database.BeginTransactionAsync(ct);

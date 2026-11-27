@@ -1,4 +1,5 @@
 using Application.Abstractions.Messaging;
+using Application.Common;
 using Contracts.Events;
 using Infrastructure.Abstractions.Caching;
 using Infrastructure.Abstractions.Persistence;
@@ -19,24 +20,18 @@ public class UpdateProductHandler(
         if (product is null)
             throw new KeyNotFoundException("Product not found");
 
+        await ProductRules.ValidateAsync(repo, product.Id, request.Name, request.Price, request.Currency, ct);
+
         product.UpdateDetails(
-            request.Name,
+            request.Name.Trim(),
             request.ShortDescription,
             request.LongDescription,
             request.Price
         );
 
-        if (request.DownloadCount is not null)
-        {
-            product.SetDownloadCount((int)request.DownloadCount);
-        }
+        // Download count and rating are never touched here: they are not admin-editable (FR-012).
 
-        if (request.AverageRating is not null)
-        {
-            product.SetAverageRating((double)request.AverageRating);
-        }
-
-        product.SetCurrency(request.Currency);
+        product.SetCurrency(ProductRules.NormalizeCurrency(request.Currency));
         product.SetSettings(request.Settings);
         product.SetSize(request.Size);
 

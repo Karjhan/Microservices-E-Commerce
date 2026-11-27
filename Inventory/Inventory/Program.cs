@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using OpenTelemetry.Logs;
+using Shared.Security.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -33,6 +34,8 @@ builder.Logging.AddOpenTelemetry(options =>
 });
 
 builder.Services.AddEndpointsApiExplorer();
+
+builder.Services.AddSharedSecurity(builder.Configuration);
 
 builder.Services
     .AddApplication()
@@ -85,6 +88,9 @@ app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseMiddleware<ExceptionMiddleware>();
 
+app.UseAuthentication();
+app.UseAuthorization();
+
 if (!isTesting && isDevelopment)
 {
     using var scope = app.Services.CreateScope();
@@ -121,6 +127,7 @@ var inventory = app.MapGroup("/inventory");
 inventory.MapGetInventoryByProductId();
 inventory.MapListInventory();
 inventory.MapAdjustInventory();
+inventory.MapGetInventoryAudit();
 
 app.Run();
 

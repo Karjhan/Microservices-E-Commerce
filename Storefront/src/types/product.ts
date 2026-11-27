@@ -7,6 +7,22 @@ export interface ProductImage {
   objectKey: string;
   url: string;
   isPrimary: boolean;
+  sortOrder: number;
+  contentType: string;
+  sizeBytes: number;
+}
+
+export type ModelFormat = 'glb' | 'gltf' | 'stl' | '3mf' | 'obj';
+
+export interface ProductModel {
+  modelId: string;
+  originalFilename: string;
+  format: ModelFormat;
+  sizeBytes: number;
+  isPreviewable: boolean;
+  uploadedAt: string;
+  /** Short-lived download link; only present when the model is fetched from its own endpoint. */
+  url?: string | null;
 }
 
 export interface PrintSettings {
@@ -54,6 +70,7 @@ export interface Product {
   supportedMaterials: Material[];
   compatiblePrinters: PrinterType[];
   images: ProductImage[];
+  model: ProductModel | null;
   downloadCount: number;
   averageRating: number;
   createdAt: string;
@@ -84,3 +101,23 @@ export interface PaginatedProducts {
   totalCount: number;
   totalPages: number;
 }
+
+
+export interface PaginatedAdminProducts {
+  items: Product[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+}
+
+/** Allowed next statuses, mirroring the server's transition table (data-model.md). */
+export const STATUS_TRANSITIONS: Record<ProductStatus, ProductStatus[]> = {
+  Draft: ['Active', 'Discontinued'],
+  Active: ['Draft', 'Inactive', 'OutOfStock', 'Discontinued'],
+  Inactive: ['Active', 'Discontinued'],
+  OutOfStock: ['Active', 'Inactive', 'Discontinued'],
+  Discontinued: [],
+};
+
+export const PRODUCT_STATUSES: ProductStatus[] = ['Draft', 'Active', 'Inactive', 'OutOfStock', 'Discontinued'];

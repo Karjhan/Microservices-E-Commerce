@@ -1,6 +1,7 @@
 using Application.Abstractions.Caching;
 using Application.Abstractions.Messaging;
 using Application.Abstractions.Persistence;
+using Infrastructure.Audit;
 using Infrastructure.Caching;
 using Infrastructure.Configuration;
 using Infrastructure.Messaging;
@@ -14,6 +15,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
+using Shared.Security.Audit;
 using StackExchange.Redis;
 
 namespace Infrastructure.DependencyInjection;
@@ -43,6 +45,8 @@ public static class InfrastructureServiceCollectionExtensions
         });
 
         services.AddScoped<IOrderRepository, OrderRepository>();
+        services.AddScoped<IAuditWriter, EfAuditWriter>();
+        services.AddScoped<IAuditReader, EfAuditReader>();
 
         var redisOptions = config.GetSection("Redis").Get<RedisOptions>();
 

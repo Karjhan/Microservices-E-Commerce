@@ -28,6 +28,8 @@ export const queryKeys = {
     list: (filters: object) => [...queryKeys.products.lists(), filters] as const,
     details: () => [...queryKeys.products.all, 'detail'] as const,
     detail: (idOrSlug: string) => [...queryKeys.products.details(), idOrSlug] as const,
+    admin: (filters: object) => [...queryKeys.products.all, 'admin', filters] as const,
+    model: (id: string) => [...queryKeys.products.all, 'model', id] as const,
   },
   orders: {
     all: ['orders'] as const,
@@ -49,6 +51,10 @@ export const queryKeys = {
     lists: () => [...queryKeys.inventory.all, 'list'] as const,
     list: (filters: object) => [...queryKeys.inventory.lists(), filters] as const,
     detail: (productId: string) => [...queryKeys.inventory.all, 'detail', productId] as const,
+  },
+  audit: {
+    all: ['audit'] as const,
+    list: (filters: object) => [...queryKeys.audit.all, 'list', filters] as const,
   },
   search: {
     all: ['search'] as const,

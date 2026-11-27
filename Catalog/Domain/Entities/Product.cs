@@ -1,5 +1,6 @@
 using Domain.Commons;
 using Domain.Enums;
+using Domain.Exceptions;
 
 namespace Domain.Entities;
 
@@ -31,6 +32,7 @@ public class Product
     public List<PrinterType> CompatiblePrinters { get; private set; } = new();
 
     public List<ProductImage> Images { get; private set; } = new();
+    public ProductModel? Model { get; private set; }
 
     public int DownloadCount { get; private set; } = 0;
     public double AverageRating { get; private set; }
@@ -165,53 +167,102 @@ public class Product
         return removed;
     }
 
-    public void Publish()
+    /// <summary>
+    /// Moves the product to <paramref name="target"/> if the transition is allowed (FR-016).
+    /// Returns false when the product is already in that status.
+    /// </summary>
+    public bool ChangeStatus(ProductStatus target)
     {
-        if (Status != ProductStatus.Draft && Status != ProductStatus.Inactive)
-            throw new InvalidOperationException("Only draft or inactive products can be published.");
+        if (target == Status)
+            return false;
 
-        Status = ProductStatus.Active;
+        if (!ProductStatusRules.CanTransition(Status, target))
+            throw new BusinessRuleException(
+                "invalid_status_transition",
+                $"A {Status} product cannot be changed to {target}.");
+
+        Status = target;
         UpdatedAt = DateTime.UtcNow;
+        return true;
     }
 
-    public void Deactivate()
-    {
-        if (Status != ProductStatus.Active)
-            throw new InvalidOperationException("Only active products can be deactivated.");
-
-        Status = ProductStatus.Inactive;
-        UpdatedAt = DateTime.UtcNow;
-    }
-
-    public void MarkOutOfStock()
-    {
-        Status = ProductStatus.OutOfStock;
-        UpdatedAt = DateTime.UtcNow;
-    }
-
-    public void Discontinue()
-    {
-        Status = ProductStatus.Discontinued;
-        UpdatedAt = DateTime.UtcNow;
-    }
-
+    /// <summary>
+    /// Appends an image at the end of the gallery. The first image of a product is always primary;
+    /// an image added as primary replaces the current one.
+    /// </summary>
     public void AddImage(ProductImage image)
     {
+        image.SetSortOrder(Images.Count == 0 ? 0 : Images.Max(x => x.SortOrder) + 1);
+
+        if (Images.Count == 0)
+            image.SetPrimary(true);
+
         if (image.IsPrimary)
-        {
-            foreach (var img in Images)
-                img.SetPrimary(false);
-        }
+            ClearPrimaryImage();
 
         Images.Add(image);
     }
 
-    public bool RemoveImage(Guid imageId)
+    public void ClearPrimaryImage()
     {
-        return Images.RemoveAll(x => x.Id == imageId) > 0;
+        foreach (var img in Images)
+            img.SetPrimary(false);
     }
 
-    private static string GenerateSlug(string name)
+    public void SetPrimaryImage(Guid imageId)
+    {
+        var image = Images.FirstOrDefault(x => x.Id == imageId)
+                    ?? throw new KeyNotFoundException("Image not found for this product");
+
+        ClearPrimaryImage();
+        image.SetPrimary(true);
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>Applies a new gallery order. The list must contain every image id exactly once.</summary>
+    public void ReorderImages(IReadOnlyList<Guid> imageIds)
+    {
+        var expected = Images.Select(x => x.Id).ToHashSet();
+
+        if (imageIds.Count != expected.Count || !expected.SetEquals(imageIds))
+            throw new ValidationFailedException(
+                "imageIds",
+                "Provide every image id of the product exactly once.");
+
+        for (var index = 0; index < imageIds.Count; index++)
+            Images.First(x => x.Id == imageIds[index]).SetSortOrder(index);
+
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>Removes an image. Call <see cref="PromoteLowestImage"/> afterwards when it was the primary one.</summary>
+    public ProductImage? RemoveImage(Guid imageId)
+    {
+        var image = Images.FirstOrDefault(x => x.Id == imageId);
+
+        if (image is not null)
+            Images.Remove(image);
+
+        return image;
+    }
+
+    /// <summary>Makes the image with the lowest sort order primary when none is (US2 scenario 3).</summary>
+    public ProductImage? PromoteLowestImage()
+    {
+        if (Images.Count == 0 || Images.Any(x => x.IsPrimary))
+            return null;
+
+        var next = Images.OrderBy(x => x.SortOrder).ThenBy(x => x.Id).First();
+        next.SetPrimary(true);
+        return next;
+    }
+
+    public void SetModel(ProductModel? model)
+    {
+        Model = model;
+        UpdatedAt = DateTime.UtcNow;
+    }
+    public static string GenerateSlug(string name)
     {
         return name.ToLower()
             .Replace(" ", "-")

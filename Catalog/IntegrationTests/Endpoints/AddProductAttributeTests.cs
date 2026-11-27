@@ -32,7 +32,7 @@ public class AddProductAttributeTests : IntegrationTestBase
     {
         var res = await Client.PostAsJsonAsync("/products", new
         {
-            Name = "Test",
+            Name = "Test " + Guid.NewGuid(),
             ShortDescription = "S",
             LongDescription = "L",
             Price = 1m,

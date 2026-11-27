@@ -1,6 +1,7 @@
 using Application.Features.Payments.CreatePayment;
 using Domain.Enums;
 using MediatR;
+using Shared.Security.Authorization;
 
 namespace Payments.Endpoints;
 
@@ -11,9 +12,18 @@ public static class CreatePaymentEndpoint
         app.MapPost("/", async (
             CreatePaymentRequest request,
             HttpContext httpContext,
+            ICurrentUser user,
             IMediator mediator,
             CancellationToken ct) =>
         {
+            // The payer is taken from the verified token, never trusted from the body (FR-005).
+            if (!user.IsAdmin && request.UserId != user.Id)
+            {
+                return Results.Json(
+                    new { error = "You can only create payments for your own account.", code = "forbidden", status = 403 },
+                    statusCode: StatusCodes.Status403Forbidden);
+            }
+
             var command = new CreatePaymentCommand(
                 request.OrderId,
                 request.UserId,
@@ -27,7 +37,7 @@ public static class CreatePaymentEndpoint
             var paymentId = await mediator.Send(command, ct);
 
             return Results.Created($"/payments/{paymentId}", new { paymentId });
-        });
+        }).RequireAuthorization();
 
         return app;
     }

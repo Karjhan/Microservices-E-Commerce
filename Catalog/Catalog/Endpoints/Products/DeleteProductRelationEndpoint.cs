@@ -1,5 +1,6 @@
 using Application.Features.Products.DeleteRelation;
 using MediatR;
+using Shared.Security.Authorization;
 
 namespace Catalog.Endpoints.Products;
 
@@ -15,7 +16,8 @@ public static class DeleteProductRelationEndpoint
         {
             await mediator.Send(new DeleteProductRelationCommand(productId, relationId), ct);
             return Results.NoContent();
-        });
+        })
+            .RequireAuthorization(AuthorizationPolicies.AdminOnly);
 
         return app;
     }

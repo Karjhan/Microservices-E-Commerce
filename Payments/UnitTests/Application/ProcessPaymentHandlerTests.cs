@@ -31,7 +31,8 @@ public class ProcessPaymentHandlerTests
             _publisher.Object,
             _cache.Object,
             _provider.Object,
-            _logger.Object);
+            _logger.Object,
+            FakeCurrentUser.Admin());
     }
 
     private void SetupCommonMocks(Payment payment)
@@ -170,5 +171,51 @@ public class ProcessPaymentHandlerTests
                 t.Amount == payment.Amount &&
                 t.Success),
             It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Should_Report_Not_Found_And_Not_Charge_For_Non_Owner()
+    {
+        var payment = TestDataBuilder.CreatePayment();
+        SetupCommonMocks(payment);
+
+        var handler = new ProcessPaymentHandler(
+            _repo.Object,
+            _publisher.Object,
+            _cache.Object,
+            _provider.Object,
+            _logger.Object,
+            FakeCurrentUser.Customer(Guid.NewGuid()));
+
+        await Assert.ThrowsAsync<PaymentNotFoundException>(
+            () => handler.Handle(new ProcessPaymentCommand(payment.Id), CancellationToken.None));
+
+        payment.Status.Should().Be(PaymentStatus.Pending);
+        _provider.Verify(x => x.ChargeAsync(
+            It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<string>(),
+            It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Should_Let_Owner_Process_Their_Own_Payment()
+    {
+        var payment = TestDataBuilder.CreatePayment();
+        SetupCommonMocks(payment);
+        _provider.Setup(x => x.ChargeAsync(
+                It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<string>(),
+                It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ProviderChargeResult(true, "pi_owner", null));
+
+        var handler = new ProcessPaymentHandler(
+            _repo.Object,
+            _publisher.Object,
+            _cache.Object,
+            _provider.Object,
+            _logger.Object,
+            FakeCurrentUser.Customer(payment.UserId));
+
+        await handler.Handle(new ProcessPaymentCommand(payment.Id), CancellationToken.None);
+
+        payment.Status.Should().Be(PaymentStatus.Completed);
     }
 }

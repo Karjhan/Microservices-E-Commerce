@@ -18,8 +18,8 @@ public static class GetProductsEndpoint
             PrinterType? printerType,
             string? search,
             ProductStatus? status,
-            int page,
-            int pageSize,
+            int? page,
+            int? pageSize,
             IMediator mediator) =>
         {
             var filter = new ProductFilter
@@ -32,8 +32,8 @@ public static class GetProductsEndpoint
                 PrinterType = printerType,
                 Search = search,
                 Status = status,
-                Page = page == 0 ? 1 : page,
-                PageSize = pageSize == 0 ? 20 : pageSize
+                Page = page is > 0 ? page.Value : 1,
+                PageSize = pageSize is > 0 ? pageSize.Value : 20
             };
 
             var result = await mediator.Send(new GetProductsQuery(filter));

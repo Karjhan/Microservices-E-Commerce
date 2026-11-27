@@ -1,8 +1,6 @@
-using System.Text;
 using ApiGateway.Configuration;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
-using Microsoft.IdentityModel.Tokens;
+using Shared.Security.Configuration;
 
 namespace ApiGateway.Extensions;
 
@@ -29,26 +27,10 @@ public static class ServiceCollectionExtensions
             });
         });
 
-        // JWT
-        var jwt = config.GetSection("Jwt").Get<JwtOptions>()!;
-
-        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-            .AddJwtBearer(opt =>
-            {
-                opt.TokenValidationParameters = new TokenValidationParameters
-                {
-                    ValidateIssuer = true,
-                    ValidateAudience = true,
-                    ValidateIssuerSigningKey = true,
-                    ValidateLifetime = true,
-                    ValidIssuer = jwt.Issuer,
-                    ValidAudience = jwt.Audience,
-                    IssuerSigningKey = new SymmetricSecurityKey(
-                        Encoding.UTF8.GetBytes(jwt.Secret))
-                };
-            });
-
-        services.AddAuthorization();
+        // JWT validation, the AdminOnly policy and 401/403 problem responses are shared with every service
+        // so the rules cannot drift (FR-001, FR-005). The gateway refuses admin routes early; the services
+        // stay authoritative because they can also be called directly.
+        services.AddSharedSecurity(config);
 
         // Rate Limiting
         services.AddRateLimiter(opt =>

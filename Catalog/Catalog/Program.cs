@@ -1,14 +1,17 @@
 using System.Text.Json;
+using Application.Abstractions.Storage;
 using Application.DependencyInjection;
 using Catalog.Endpoints.Health;
 using Catalog.Endpoints.Products;
 using Catalog.Middleware;
+using Infrastructure.BackgroundJobs;
 using Infrastructure.Configuration;
 using Infrastructure.DependencyInjection;
 using Infrastructure.Persistence;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Shared.Security.Configuration;
 using Minio;
 using Minio.DataModel.Args;
 using OpenTelemetry.Logs;
@@ -41,6 +44,9 @@ builder.Services
     .AddApplication()
     .AddInfrastructure(builder.Configuration);
 
+// Shared JWT validation, AdminOnly policy, 401/403 problem handler, ICurrentUser (FR-001, FR-002)
+builder.Services.AddSharedSecurity(builder.Configuration);
+
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
     options.SerializerOptions.Converters.Add(
@@ -49,6 +55,9 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 
 if (!isTesting)
 {
+    // Removes storage objects no row refers to, e.g. after an interrupted upload (research R8).
+    builder.Services.AddHostedService<OrphanedObjectSweepJob>();
+
     var config = builder.Configuration;
 
     var healthChecks = builder.Services.AddHealthChecks();
@@ -89,6 +98,10 @@ var app = builder.Build();
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseMiddleware<ExceptionMiddleware>();
+app.UseMiddleware<RequestBodyLimitMiddleware>();
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 if (!isTesting && isDevelopment)
 {
@@ -110,6 +123,11 @@ if (!isTesting && isDevelopment)
         await minio.MakeBucketAsync(
             new MakeBucketArgs().WithBucket(options.Bucket));
     }
+
+    // The private bucket for 3D models (research R8).
+    await scope.ServiceProvider
+        .GetRequiredService<IFileStorageService>()
+        .EnsureBucketsAsync();
 }
 
 if (!isTesting)
@@ -138,6 +156,7 @@ if (!isTesting)
 
 var products = app.MapGroup("/products");
 
+products.MapGetProductsAudit();
 products.MapCreateProduct();
 products.MapDeleteProduct();
 products.MapGetProductById();
@@ -145,6 +164,13 @@ products.MapGetProducts();
 products.MapUpdateProduct();
 products.MapUploadProductImage();
 products.MapDeleteProductImage();
+products.MapSetPrimaryImage();
+products.MapReorderImages();
+products.MapSetProductStatus();
+products.MapGetAdminProducts();
+products.MapUploadProductModel();
+products.MapGetProductModel();
+products.MapDeleteProductModel();
 products.MapAddProductAttribute();
 products.MapDeleteProductAttribute();
 products.MapGetProductAttributes();

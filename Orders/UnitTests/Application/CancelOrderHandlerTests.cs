@@ -21,7 +21,7 @@ public class CancelOrderHandlerTests
 
     public CancelOrderHandlerTests()
     {
-        _handler = new CancelOrderHandler(_repo.Object, _publisher.Object, _cache.Object);
+        _handler = new CancelOrderHandler(_repo.Object, _publisher.Object, _cache.Object, FakeCurrentUser.Admin());
     }
 
     [Fact]
@@ -107,5 +107,59 @@ public class CancelOrderHandlerTests
         // Assert
         _cache.Verify(x => x.RemoveAsync($"order:{order.Id}"), Times.Once);
         _cache.Verify(x => x.RemoveByPrefixAsync("orders:"), Times.Once);
+    }
+
+    [Fact]
+    public async Task Should_Let_Owner_Cancel_Their_Own_Order()
+    {
+        var order = TestDataBuilder.CreateFullOrder();
+        SetupOrder(order);
+
+        var handler = new CancelOrderHandler(
+            _repo.Object, _publisher.Object, _cache.Object, FakeCurrentUser.Customer(order.UserId));
+
+        await handler.Handle(new CancelOrderCommand(order.Id, "Changed mind"), CancellationToken.None);
+
+        order.Status.Should().Be(global::Domain.Enums.OrderStatus.Cancelled);
+    }
+
+    [Fact]
+    public async Task Should_Report_Not_Found_And_Change_Nothing_For_Non_Owner()
+    {
+        var order = TestDataBuilder.CreateFullOrder();
+        var before = order.Status;
+        SetupOrder(order);
+
+        var handler = new CancelOrderHandler(
+            _repo.Object, _publisher.Object, _cache.Object, FakeCurrentUser.Customer(Guid.NewGuid()));
+
+        await Assert.ThrowsAsync<OrderNotFoundException>(
+            () => handler.Handle(new CancelOrderCommand(order.Id, "Not mine"), CancellationToken.None));
+
+        order.Status.Should().Be(before);
+        _repo.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        _publisher.Verify(x => x.PublishAsync(It.IsAny<object>(), It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Should_Report_Not_Found_For_Anonymous_Caller()
+    {
+        var order = TestDataBuilder.CreateFullOrder();
+        SetupOrder(order);
+
+        var handler = new CancelOrderHandler(
+            _repo.Object, _publisher.Object, _cache.Object, FakeCurrentUser.Anonymous());
+
+        await Assert.ThrowsAsync<OrderNotFoundException>(
+            () => handler.Handle(new CancelOrderCommand(order.Id, "Anon"), CancellationToken.None));
+    }
+
+    private void SetupOrder(Order order)
+    {
+        _repo.Setup(x => x.GetByIdAsync(order.Id, It.IsAny<CancellationToken>())).ReturnsAsync(order);
+        _repo.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        _cache.Setup(x => x.RemoveAsync(It.IsAny<string>())).Returns(Task.CompletedTask);
+        _cache.Setup(x => x.RemoveByPrefixAsync(It.IsAny<string>())).Returns(Task.CompletedTask);
+        _publisher.Setup(x => x.PublishAsync(It.IsAny<object>(), It.IsAny<string>())).Returns(Task.CompletedTask);
     }
 }

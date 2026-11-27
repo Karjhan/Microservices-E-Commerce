@@ -4,6 +4,8 @@ using System.Text;
 using Domain.Abstractions.Authentication;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
+using Shared.Security.Authorization;
+using Shared.Security.Configuration;
 
 namespace Infrastructure.Authentication;
 
@@ -28,14 +30,17 @@ public class JwtProvider : IJwtProvider
         {
             new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
             new Claim(JwtRegisteredClaimNames.Email, email),
-            new Claim(ClaimTypes.Role, role)
+            new Claim(ClaimTypes.Role, Roles.NormalizeRole(role))
         };
+
+        var lifetimeMinutes = _config.GetValue<int?>($"{SharedJwtOptions.SectionName}:AccessTokenMinutes")
+                              ?? new SharedJwtOptions().AccessTokenMinutes;
 
         var token = new JwtSecurityToken(
             issuer: _config["Jwt:Issuer"],
             audience: _config["Jwt:Audience"],
             claims: claims,
-            expires: DateTime.UtcNow.AddMinutes(60),
+            expires: DateTime.UtcNow.AddMinutes(lifetimeMinutes),
             signingCredentials: creds
         );
 

@@ -15,7 +15,7 @@ public static class CancelOrderEndpoint
         {
             await mediator.Send(new CancelOrderCommand(orderId, request.Reason), ct);
             return Results.NoContent();
-        });
+        }).RequireAuthorization();
 
         return app;
     }

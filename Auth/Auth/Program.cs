@@ -1,5 +1,5 @@
-using System.Text;
 using System.Text.Json;
+using Application.Features.Audit;
 using Application.Features.GoogleLogin;
 using Application.Features.Login;
 using Application.Features.RefreshToken;
@@ -10,18 +10,19 @@ using Domain.Abstractions.Authentication;
 using Domain.Abstractions.Messaging;
 using Domain.Abstractions.Persistence;
 using Infrastructure;
+using Infrastructure.Audit;
 using Infrastructure.Authentication;
 using Infrastructure.External.Google;
 using Infrastructure.Messaging;
 using Infrastructure.Persistence;
 using Infrastructure.Persistence.Repositories;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
 using OpenTelemetry.Logs;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using Shared.Security.Audit;
+using Shared.Security.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -56,21 +57,10 @@ builder.Services.AddScoped<RefreshTokenHandler>();
 builder.Services.AddScoped<IGoogleTokenValidator, GoogleTokenValidator>();
 builder.Services.AddScoped<GoogleLoginHandler>();
 
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        var key = Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!);
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = builder.Configuration["Jwt:Issuer"],
-            ValidAudience = builder.Configuration["Jwt:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(key)
-        };
-    });
-builder.Services.AddAuthorization();
+// Shared JWT validation, AdminOnly policy, 401/403 problem handler, ICurrentUser (FR-001, FR-002)
+builder.Services.AddSharedSecurity(builder.Configuration);
+builder.Services.AddScoped<IAuditWriter, EfAuditWriter>();
+builder.Services.AddScoped<GetAuditHandler>();
 
 builder.Services.AddOpenTelemetry()
     .WithTracing(tracing =>

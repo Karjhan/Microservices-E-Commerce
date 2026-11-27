@@ -1,5 +1,6 @@
 using Application.Features.Products.DeleteImage;
 using MediatR;
+using Shared.Security.Authorization;
 
 namespace Catalog.Endpoints.Products;
 
@@ -15,7 +16,8 @@ public static class DeleteProductImageEndpoint
         {
             await mediator.Send(new DeleteProductImageCommand(productId, imageId), ct);
             return Results.NoContent();
-        });
+        })
+            .RequireAuthorization(AuthorizationPolicies.AdminOnly);
 
         return app;
     }

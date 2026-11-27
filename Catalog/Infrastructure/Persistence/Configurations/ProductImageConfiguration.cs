@@ -12,5 +12,16 @@ public class ProductImageConfiguration : IEntityTypeConfiguration<ProductImage>
 
         builder.Property(x => x.ObjectKey).IsRequired();
         builder.Property(x => x.Url).IsRequired();
+
+        builder.Property(x => x.SortOrder).HasDefaultValue(0);
+        builder.Property(x => x.ContentType).IsRequired().HasMaxLength(50);
+        builder.Property(x => x.SizeBytes);
+
+        builder.HasIndex(x => new { x.ProductId, x.SortOrder });
+
+        builder.HasIndex(x => x.ProductId)
+            .IsUnique()
+            .HasFilter("\"IsPrimary\"")
+            .HasDatabaseName("UX_ProductImages_Primary");
     }
 }

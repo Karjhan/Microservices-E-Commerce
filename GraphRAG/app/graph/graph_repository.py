@@ -50,6 +50,12 @@ class GraphRepository:
 
         logger.info("Upserted product to Neo4j", product_id=document.id)
 
+    async def set_status(self, product_id: str, status: str) -> None:
+        driver = await get_neo4j_driver()
+        async with driver.session() as session:
+            await session.run(cq.SET_PRODUCT_STATUS, id=product_id, status=status)
+        logger.info("Updated product status in Neo4j", product_id=product_id, status=status)
+
     async def delete_product(self, product_id: str) -> None:
         driver = await get_neo4j_driver()
         async with driver.session() as session:

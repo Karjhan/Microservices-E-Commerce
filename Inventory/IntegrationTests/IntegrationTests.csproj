@@ -29,6 +29,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\Inventory\Inventory.csproj" />
+      <ProjectReference Include="..\..\Shared\Security.TestSupport\Security.TestSupport.csproj" />
     </ItemGroup>
 
 </Project>

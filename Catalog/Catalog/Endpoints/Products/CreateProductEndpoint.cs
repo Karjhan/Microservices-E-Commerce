@@ -1,6 +1,7 @@
 using Application.Features.Products.CreateProduct;
 using Domain.Commons;
 using MediatR;
+using Shared.Security.Authorization;
 
 namespace Catalog.Endpoints.Products;
 
@@ -29,7 +30,8 @@ public static class CreateProductEndpoint
             var productId = await mediator.Send(command);
 
             return Results.Created($"/products/{productId}", new { productId });
-        });
+        })
+            .RequireAuthorization(AuthorizationPolicies.AdminOnly);
 
         return app;
     }

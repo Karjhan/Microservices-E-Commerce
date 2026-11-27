@@ -3,6 +3,7 @@ using FluentAssertions;
 using IntegrationTests.Factories;
 using IntegrationTests.Fixtures;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Shared.Security.TestSupport;
 
 namespace IntegrationTests.Tests.Auth;
 
@@ -18,6 +19,9 @@ public class CatalogTests : IClassFixture<TestEnvironment>
         {
             BaseAddress = new Uri("http://localhost")
         });
+
+        // Creating a product is an administrative operation (FR-001).
+        _client.AsAdmin();
     }
 
     [Fact]

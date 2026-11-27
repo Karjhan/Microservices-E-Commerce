@@ -1,4 +1,5 @@
 import { auth } from '@/lib/auth';
+import { STAFF_ROLE } from '@/lib/auth.config';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
@@ -34,9 +35,7 @@ export default auth((req: NextRequest & { auth: any }) => {
 
   const isStaffRoute = staffPaths.some((p) => pathname.startsWith(p));
   if (isStaffRoute) {
-    const role = req.auth?.user?.role;
-    const staffRoles = ['Admin', 'Manager', 'Support'];
-    if (!staffRoles.includes(role)) {
+    if (req.auth?.user?.role !== STAFF_ROLE) {
       return NextResponse.redirect(new URL('/', req.nextUrl.origin));
     }
   }

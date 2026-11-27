@@ -2,6 +2,7 @@ using Application.Abstractions.Persistence;
 using Application.Features.Orders.GetOrders;
 using Domain.Enums;
 using MediatR;
+using Shared.Security.Authorization;
 
 namespace Orders.Endpoints;
 
@@ -31,7 +32,7 @@ public static class GetOrdersEndpoint
 
             var result = await mediator.Send(new GetOrdersQuery(filter), ct);
             return Results.Ok(result);
-        });
+        }).RequireAuthorization(AuthorizationPolicies.AdminOnly);
 
         return app;
     }

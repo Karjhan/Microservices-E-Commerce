@@ -14,7 +14,7 @@ public static class GetPaymentByOrderIdEndpoint
         {
             var result = await mediator.Send(new GetPaymentByOrderIdQuery(orderId), ct);
             return Results.Ok(result);
-        });
+        }).RequireAuthorization();
 
         return app;
     }
