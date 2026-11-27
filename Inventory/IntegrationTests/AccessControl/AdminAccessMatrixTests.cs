@@ -31,6 +31,8 @@ public class AdminAccessMatrixTests : IntegrationTestBase
     [
         ["list-inventory", "GET", "/inventory"],
         ["adjust-inventory", "POST", "/inventory/{p}/adjustments"],
+        ["inventory-movements", "GET", "/inventory/{p}/movements"],
+        ["inventory-threshold", "PUT", "/inventory/{p}/threshold"],
         ["audit", "GET", "/inventory/admin/audit"]
     ];
 
@@ -106,10 +108,10 @@ public class AdminAccessMatrixTests : IntegrationTestBase
         using var anonymous = Factory.CreateClient();
 
         var path = $"/inventory/{Guid.NewGuid()}/adjustments";
-        var body = JsonContent.Create(new { delta = 1, reason = "should be refused" });
+        var body = JsonContent.Create(new { mode = "delta", quantity = 1, reason = "should be refused" });
 
         (await customer.PostAsync(path, body)).StatusCode.Should().Be(HttpStatusCode.Forbidden);
-        (await anonymous.PostAsync(path, JsonContent.Create(new { delta = 1, reason = "should be refused" })))
+        (await anonymous.PostAsync(path, JsonContent.Create(new { mode = "delta", quantity = 1, reason = "should be refused" })))
             .StatusCode.Should().Be(HttpStatusCode.Unauthorized);
 
         var entries = (await AuditItems())
@@ -144,7 +146,7 @@ public class AdminAccessMatrixTests : IntegrationTestBase
 
         var response = await Client.PostAsJsonAsync(
             $"/inventory/{productId}/adjustments",
-            new { delta = -5, reason = "removing stock that does not exist" });
+            new { mode = "delta", quantity = -5, reason = "removing stock that does not exist" });
 
         response.IsSuccessStatusCode.Should().BeFalse();
 
@@ -183,7 +185,11 @@ public class AdminAccessMatrixTests : IntegrationTestBase
 
         if (name == "adjust-inventory")
         {
-            request.Content = JsonContent.Create(new { delta = 1, reason = "access matrix probe" });
+            request.Content = JsonContent.Create(new { mode = "delta", quantity = 1, reason = "access matrix probe" });
+        }
+        else if (name == "inventory-threshold")
+        {
+            request.Content = JsonContent.Create(new { lowStockThreshold = 4 });
         }
 
         return request;
@@ -194,7 +200,7 @@ public class AdminAccessMatrixTests : IntegrationTestBase
         var productId = Guid.NewGuid();
         var response = await Client.PostAsJsonAsync(
             $"/inventory/{productId}/adjustments",
-            new { delta = quantity, reason = "access matrix seed" });
+            new { mode = "delta", quantity = quantity, reason = "access matrix seed" });
         response.EnsureSuccessStatusCode();
         return productId;
     }

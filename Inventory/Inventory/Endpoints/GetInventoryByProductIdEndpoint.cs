@@ -13,7 +13,7 @@ public static class GetInventoryByProductIdEndpoint
             CancellationToken ct) =>
         {
             var result = await mediator.Send(new GetInventoryByProductIdQuery(productId), ct);
-            return Results.Ok(result);
+            return Results.Ok(result.Body);
         });
 
         return app;

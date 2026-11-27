@@ -206,7 +206,7 @@ export function ProductForm({
                 <option value="">{categories.isLoading ? 'Loading...' : 'Select a category'}</option>
                 {categoryOptions.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.isActive ? c.name : ` (inactive)`}
+                    {c.isActive ? c.name : `${c.name} (inactive)`}
                   </option>
                 ))}
               </NativeSelect>
@@ -223,7 +223,7 @@ export function ProductForm({
                 <option value="">{brands.isLoading ? 'Loading...' : 'No brand'}</option>
                 {brandOptions.map((b) => (
                   <option key={b.id} value={b.id}>
-                    {b.isActive ? b.name : ` (inactive)`}
+                    {b.isActive ? b.name : `${b.name} (inactive)`}
                   </option>
                 ))}
               </NativeSelect>
@@ -250,7 +250,7 @@ export function ProductForm({
                   aria-pressed={selectedFilamentTypeIds.includes(f.id)}
                 >
                   <Badge variant={selectedFilamentTypeIds.includes(f.id) ? 'default' : 'outline'} className="cursor-pointer">
-                    {f.isActive ? f.name : ` (inactive)`}
+                    {f.isActive ? f.name : `${f.name} (inactive)`}
                   </Badge>
                 </button>
               ))}

@@ -114,9 +114,9 @@ Inventory/
 
 ## 4. HTTP API
 
-Base path: `/inventory`. Three endpoints plus `GET /health`.
+Base path: `/inventory`. Five endpoints plus `GET /health`.
 
-**Authentication and authorization: none.** The service has no authentication or authorization middleware, and no endpoint carries an auth attribute. Role checks (for example admin-only stock adjustment) are not enforced by this service, and the gateway route for `/inventory/**` in `appsettings.json` declares no `AuthorizationPolicy`. Anyone who can reach the service can read and adjust stock.
+**Authorization.** Reading one product's stock is open to everyone and returns only what a shopper may see (`available`, `inStock`). Every other endpoint (list, adjust, history, threshold) requires the `AdminOnly` policy, and an administrator calling `GET /inventory/{productId}` gets the full record. The gateway routes for the admin endpoints carry `AuthorizationPolicy: AdminOnly` as well.
 
 JSON conventions: request and response bodies use ASP.NET Core web defaults (camelCase property names, case-insensitive on input). Enums are serialized as strings (`JsonStringEnumConverter`), but no HTTP payload currently contains an enum. Every response carries an `X-Correlation-Id` header (echoed from the request, or generated).
 
@@ -127,10 +127,18 @@ Returns the stock of one product.
 | Item | Value |
 |------|-------|
 | Path param | `productId` (`Guid`, route constraint `:guid`) |
-| Auth | None |
-| Caching | Redis `inventory:product:{productId}`, TTL 5 min |
-| `200` | `InventoryItemDto` |
+| Auth | Anyone. The body depends on the caller (see below) |
+| Caching | Redis `inventory:product:{productId}`, TTL 5 min (the full record is cached; the shopper view is derived from it) |
+| `200` | `PublicInventoryDto` for shoppers and anonymous callers, `InventoryItemDto` for administrators |
 | `404` | Item does not exist (`inventory.not_found`) |
+
+Shopper view:
+
+```json
+{ "productId": "1708aa1c-d853-4a67-a837-b073d7e42432", "available": 7, "inStock": true }
+```
+
+Administrator view:
 
 ```json
 {
@@ -139,27 +147,32 @@ Returns the stock of one product.
   "reservedQuantity": 3,
   "availableQuantity": 7,
   "isDepleted": false,
+  "lowStockThreshold": 5,
+  "status": "ok",
+  "version": "AAAAAAAAB9E=",
   "updatedAt": "2026-06-04T10:15:30.1234567Z"
 }
 ```
 
-`availableQuantity = onHandQuantity - reservedQuantity`. `isDepleted` is `true` when `availableQuantity <= 0`.
+`availableQuantity = onHandQuantity - reservedQuantity`. `isDepleted` is `true` when `availableQuantity <= 0`. `status` is `out` when nothing is available, `low` when `0 < available <= lowStockThreshold`, otherwise `ok`. `version` changes with every update; send it back as `expectedVersion` to be told about concurrent changes.
 
 ### 4.2 `GET /inventory`
 
-Paged list of inventory items, ordered by `productId` ascending.
+Paged list of inventory items, most urgent first: out of stock, then low, then the rest, each group by available quantity ascending.
 
 | Query param | Type | Default | Behavior |
 |-------------|------|---------|----------|
-| `depletedOnly` | `bool?` | `null` (no filter) | `true` returns only items with `onHand - reserved <= 0`. `false` and `null` apply no filter. |
+| `status` | `string?` | `all` | `all`, `low` (`0 < available <= threshold`) or `out` (`available <= 0`). |
+| `productIds` | `string?` | none | Comma-separated product ids (at most 100); only those products are listed. |
+| `depletedOnly` | `bool?` | `null` (no filter) | Legacy: `true` is the same as `status=out`. |
 | `page` | `int?` | `1` | Values `<= 0` or missing fall back to `1`. |
 | `pageSize` | `int?` | `20` | Values `<= 0` or missing fall back to `20`. Capped at `100`. |
 
 | Item | Value |
 |------|-------|
-| Auth | None |
+| Auth | `AdminOnly` |
 | Caching | Redis `inventory:list:{SHA256-hex of filter JSON}`, TTL 1 min |
-| `200` | `InventoryListDto` |
+| `200` | `InventoryListDto` (items have the administrator shape of 4.1) |
 
 ```json
 {
@@ -170,6 +183,9 @@ Paged list of inventory items, ordered by `productId` ascending.
       "reservedQuantity": 3,
       "availableQuantity": 7,
       "isDepleted": false,
+      "lowStockThreshold": 5,
+      "status": "ok",
+      "version": "AAAAAAAAB9E=",
       "updatedAt": "2026-06-04T10:15:30.1234567Z"
     }
   ],
@@ -184,34 +200,73 @@ Paged list of inventory items, ordered by `productId` ascending.
 
 ### 4.3 `POST /inventory/{productId}/adjustments`
 
-Manually adds or removes stock. This is also the only way an inventory item is created.
+Manually changes stock, either by an amount or to an exact count. This is also the only way an inventory item is created.
 
 | Item | Value |
 |------|-------|
 | Path param | `productId` (`Guid`) |
-| Auth | None |
+| Auth | `AdminOnly` |
 | Request body | `AdjustInventoryRequest` |
-| `200` | Updated `InventoryItemDto` (same shape as 4.1) |
-| `400` | Reason missing or shorter than 3 characters; result would make on-hand negative; result would make on-hand less than reserved |
+| `200` | Updated `InventoryItemDto` (administrator shape of 4.1) |
+| `400` | `validation_failed` with per-field `errors`: `mode` not `delta`/`set`, `reason` not 3 to 200 characters, `quantity` zero for `delta` or beyond 1,000,000 |
 | `404` | `delta < 0` and the item does not exist |
+| `409` | `stale_version`: `expectedVersion` no longer matches, or a concurrent change won |
+| `422` | `below_zero` or `below_reserved`: the result would be negative or less than what open orders reserved |
 
 ```json
 {
-  "delta": 50,
-  "reason": "Initial stock received from supplier"
+  "mode": "delta",
+  "quantity": 50,
+  "reason": "Delivery received from supplier",
+  "expectedVersion": "AAAAAAAAB9E="
 }
 ```
 
 | Field | Type | Rules |
 |-------|------|-------|
-| `delta` | `int` | Signed change to `onHandQuantity`. Positive adds, negative removes. |
-| `reason` | `string` | Required, `Trim().Length >= 3`. Stored in `InventoryMovements.Reason`. |
+| `mode` | `string` | `delta` adds `quantity` (negative removes); `set` makes `quantity` the new on-hand count (`>= 0`). |
+| `quantity` | `int` | Not `0` for `delta`; at most 1,000,000 in absolute value. |
+| `reason` | `string` | Required, trimmed length 3 to 200. Stored in `InventoryMovements.Reason`. |
+| `expectedVersion` | `string?` | The `version` the caller last read. When given and stale the change is refused with `409`. |
 
 Behavior:
 
-- Item missing and `delta >= 0`: a new `InventoryItem` is created with `onHand = delta`. A `delta` of `0` creates an empty item.
-- Item exists: `onHand += delta`, rejected if the result would be `< 0` or `< reserved`.
-- A movement (`Adjust`, source trigger `manual.adjust`) is recorded, the Redis cache is invalidated (`inventory:product:{id}` and the `inventory:list:` prefix), then `inventory.updated` is published, plus `inventory.depleted` if the item is now depleted.
+- Item missing and the result is `>= 0`: a new `InventoryItem` is created with that on-hand count and the default low-stock threshold (`Inventory:DefaultLowStockThreshold`, 5).
+- Item exists: the change is applied, rejected if the result would be `< 0` or `< reserved`. The update is guarded by `RowVersion`, so two concurrent changes cannot both win.
+- A movement (`Adjust`, with the admin's id and email and the resulting on-hand) and an audit entry (`inventory.adjust`) are written in the same transaction. Then the Redis cache is invalidated (`inventory:product:{id}` and the `inventory:list:` prefix) and `inventory.updated` is published, plus `inventory.depleted` if the item is now depleted. The Catalog service consumes `inventory.updated` to move a product between `Active` and `OutOfStock`.
+
+### 4.3.1 `GET /inventory/{productId}/movements`
+
+The stock history of one product, newest first (`AdminOnly`). Query: `page` (default 1), `pageSize` (default 20, at most 100). `404` when the product has no stock record.
+
+```json
+{
+  "items": [
+    {
+      "id": "6f3f4b52-6a09-4d3c-a0a6-2d6b1b0f2f10",
+      "occurredAt": "2026-06-04T10:15:30.1234567Z",
+      "type": "Adjust",
+      "delta": 50,
+      "reason": "Delivery received from supplier",
+      "actorId": "0b0c8f5e-4f2b-4c1d-9c53-1c0b2e7f9a11",
+      "actor": "admin@example.com",
+      "orderId": null,
+      "resultingOnHand": 60,
+      "reservedAfter": 3
+    }
+  ],
+  "page": 1,
+  "pageSize": 20,
+  "totalCount": 1,
+  "totalPages": 1
+}
+```
+
+Changes made by the order flow (`Reserve`, `Release`, `Deduct`) have no actor and carry the `orderId`.
+
+### 4.3.2 `PUT /inventory/{productId}/threshold`
+
+Sets the number at or below which the product counts as low on stock (`AdminOnly`). Body `{ "lowStockThreshold": 10 }`, a whole number from 0 to 100,000 (`400 validation_failed` otherwise, `404` without a stock record). Returns the updated `InventoryItemDto`. An audit entry `inventory.threshold.set` is written.
 
 ### 4.4 `GET /health`
 
@@ -232,24 +287,28 @@ The `redis` check is registered only when `Redis:ConnectionString` is non-empty.
 
 ### 4.5 Error format and status mapping
 
-Errors are produced by `ExceptionMiddleware`:
+Errors are produced by `ExceptionMiddleware` as Problem Details (`application/problem+json`). `error` repeats `detail` for older callers; `errors` is present for field validation failures.
 
 ```json
 {
-  "error": "Inventory item for product 1708aa1c-d853-4a67-a837-b073d7e42432 not found",
-  "code": "inventory.not_found",
+  "type": "about:blank",
+  "title": "Not Found",
   "status": 404,
+  "detail": "Inventory item for product 1708aa1c-d853-4a67-a837-b073d7e42432 not found",
+  "code": "inventory.not_found",
+  "error": "Inventory item for product 1708aa1c-d853-4a67-a837-b073d7e42432 not found",
   "traceId": "0HN..."
 }
 ```
 
 | Exception | `code` | HTTP status |
 |-----------|--------|-------------|
+| `InventoryValidationException` | `validation_failed` | 400 (with `errors`) |
 | `InventoryItemNotFoundException` | `inventory.not_found` | 404 |
 | `InsufficientStockException` | `inventory.insufficient_stock` | 409 |
 | `InvalidReservationStateException` | `inventory.invalid_reservation_state` | 409 |
-| `InvalidAdjustmentException` | `inventory.invalid_adjustment` | 400 |
-| `ConcurrencyConflictException` | `inventory.concurrency_conflict` | 400 (falls through to the default branch) |
+| `InvalidAdjustmentException` | `below_zero`, `below_reserved` (or `inventory.invalid_adjustment`) | 422 |
+| `ConcurrencyConflictException` | `stale_version` | 409 |
 | `KeyNotFoundException` | `null` | 404 |
 | `ArgumentException` | `null` | 400 |
 | any other exception | `null` | 500 |
@@ -261,8 +320,10 @@ Errors are produced by `ExceptionMiddleware`:
 ```http
 GET  /inventory/{productId}
 GET  /inventory?page=1&pageSize=20
-GET  /inventory?depletedOnly=true&page=1&pageSize=20
-POST /inventory/{productId}/adjustments   { "delta": -5, "reason": "Damaged goods removed from warehouse" }
+GET  /inventory?status=out&page=1&pageSize=20
+POST /inventory/{productId}/adjustments   { "mode": "delta", "quantity": -5, "reason": "Damaged goods removed from warehouse" }
+GET  /inventory/{productId}/movements
+PUT  /inventory/{productId}/threshold     { "lowStockThreshold": 10 }
 ```
 
 ---

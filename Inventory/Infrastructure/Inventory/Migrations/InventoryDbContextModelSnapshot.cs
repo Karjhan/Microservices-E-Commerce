@@ -31,6 +31,11 @@ namespace Infrastructure.Inventory.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int>("LowStockThreshold")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(5);
+
                     b.Property<int>("OnHandQuantity")
                         .HasColumnType("integer");
 
@@ -60,6 +65,13 @@ namespace Infrastructure.Inventory.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorEmail")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<Guid?>("ActorId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("CorrelationId")
@@ -103,7 +115,8 @@ namespace Infrastructure.Inventory.Migrations
 
                     b.HasIndex("OrderId");
 
-                    b.HasIndex("ProductId", "OccurredAt");
+                    b.HasIndex("ProductId", "OccurredAt")
+                        .IsDescending(false, true);
 
                     b.ToTable("InventoryMovements", (string)null);
                 });

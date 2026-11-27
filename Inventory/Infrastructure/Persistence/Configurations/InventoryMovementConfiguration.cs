@@ -24,10 +24,12 @@ public class InventoryMovementConfiguration : IEntityTypeConfiguration<Inventory
 
         builder.Property(x => x.Reason).HasMaxLength(500);
         builder.Property(x => x.CorrelationId).HasMaxLength(100);
+        builder.Property(x => x.ActorEmail).HasMaxLength(256);
 
         builder.Property(x => x.OccurredAt).IsRequired();
 
-        builder.HasIndex(x => new { x.ProductId, x.OccurredAt });
+        // The history of one product, newest first.
+        builder.HasIndex(x => new { x.ProductId, x.OccurredAt }).IsDescending(false, true);
         builder.HasIndex(x => x.OrderId);
     }
 }

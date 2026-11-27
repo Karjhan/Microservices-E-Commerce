@@ -9,9 +9,13 @@ import { ProductForm } from '@/components/admin/product-form';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useCreateProduct } from '@/hooks/queries/use-admin-products';
 import { ApiClientError, errorMessage } from '@/lib/api/client';
+import { adjustStock } from '@/lib/api/inventory';
 import { uploadProductImage, uploadProductModel } from '@/lib/api/products';
+import { MAX_STOCK_QUANTITY } from '@/schemas/inventory';
 import {
   IMAGE_ACCEPT,
   IMAGE_TYPES_HINT,
@@ -23,10 +27,32 @@ import {
   type CreateProductFormValues,
 } from '@/schemas/product';
 
-interface FailedUpload {
-  kind: 'image' | 'model';
-  file: File;
+interface FailedStep {
+  kind: 'image' | 'model' | 'stock';
+  label: string;
+  file?: File;
   reason: string;
+}
+
+interface StepQueue {
+  images: File[];
+  model: File | null;
+  stock: number | null;
+}
+
+const INITIAL_STOCK_REASON = 'Initial stock';
+
+function parseInitialStock(text: string): { value: number | null; problem: string | null } {
+  const trimmed = text.trim();
+  if (trimmed === '') return { value: null, problem: null };
+  const value = Number(trimmed);
+  if (!Number.isInteger(value) || value < 0 || value > MAX_STOCK_QUANTITY) {
+    return {
+      value: null,
+      problem: `Initial stock must be a whole number from 0 to ${MAX_STOCK_QUANTITY.toLocaleString()}.`,
+    };
+  }
+  return { value: value > 0 ? value : null, problem: null };
 }
 
 export default function AdminNewProductPage() {
@@ -39,7 +65,9 @@ export default function AdminNewProductPage() {
   const [model, setModel] = useState<File | null>(null);
   const [fileProblems, setFileProblems] = useState<string[]>([]);
   const [createdId, setCreatedId] = useState<string | null>(null);
-  const [failures, setFailures] = useState<FailedUpload[]>([]);
+  const [failures, setFailures] = useState<FailedStep[]>([]);
+  const [initialStock, setInitialStock] = useState('');
+  const [stockProblem, setStockProblem] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
 
   function pickImages(files: FileList | null) {
@@ -65,14 +93,14 @@ export default function AdminNewProductPage() {
     if (modelInput.current) modelInput.current.value = '';
   }
 
-  async function uploadMedia(productId: string, queue: { images: File[]; model: File | null }) {
-    const failed: FailedUpload[] = [];
+  async function runSteps(productId: string, queue: StepQueue) {
+    const failed: FailedStep[] = [];
 
     for (const file of queue.images) {
       try {
         await uploadProductImage(productId, file);
       } catch (error) {
-        failed.push({ kind: 'image', file, reason: errorMessage(error, 'Upload failed.') });
+        failed.push({ kind: 'image', label: file.name, file, reason: errorMessage(error, 'Upload failed.') });
       }
     }
 
@@ -80,16 +108,33 @@ export default function AdminNewProductPage() {
       try {
         await uploadProductModel(productId, queue.model);
       } catch (error) {
-        failed.push({ kind: 'model', file: queue.model, reason: errorMessage(error, 'Upload failed.') });
+        failed.push({
+          kind: 'model',
+          label: queue.model.name,
+          file: queue.model,
+          reason: errorMessage(error, 'Upload failed.'),
+        });
+      }
+    }
+
+    if (queue.stock !== null) {
+      try {
+        await adjustStock(productId, { mode: 'set', quantity: queue.stock, reason: INITIAL_STOCK_REASON });
+      } catch (error) {
+        failed.push({
+          kind: 'stock',
+          label: `Initial stock of ${queue.stock}`,
+          reason: errorMessage(error, 'The stock could not be set.'),
+        });
       }
     }
 
     return failed;
   }
 
-  async function finishUploads(productId: string, queue: { images: File[]; model: File | null }) {
+  async function finishSteps(productId: string, queue: StepQueue) {
     setUploading(true);
-    const failed = await uploadMedia(productId, queue);
+    const failed = await runSteps(productId, queue);
     setUploading(false);
     setFailures(failed);
 
@@ -101,19 +146,28 @@ export default function AdminNewProductPage() {
 
   async function handleSubmit(values: CreateProductFormValues) {
     setFileProblems([]);
+
+    const stock = parseInitialStock(initialStock);
+    if (stock.problem) {
+      setStockProblem(stock.problem);
+      return;
+    }
+    setStockProblem(null);
+
     try {
       const { productId } = await createMutation.mutateAsync(values as unknown as Record<string, unknown>);
       setCreatedId(productId);
-      await finishUploads(productId, { images, model });
+      await finishSteps(productId, { images, model, stock: stock.value });
     } catch {
     }
   }
 
   function retryFailed() {
     if (!createdId) return;
-    void finishUploads(createdId, {
-      images: failures.filter((f) => f.kind === 'image').map((f) => f.file),
+    void finishSteps(createdId, {
+      images: failures.filter((f) => f.kind === 'image').flatMap((f) => (f.file ? [f.file] : [])),
       model: failures.find((f) => f.kind === 'model')?.file ?? null,
+      stock: failures.some((f) => f.kind === 'stock') ? parseInitialStock(initialStock).value : null,
     });
   }
 
@@ -134,18 +188,18 @@ export default function AdminNewProductPage() {
 
       {locked && failures.length > 0 && (
         <Alert variant="destructive" role="alert">
-          <AlertTitle>The product was saved as a draft, but some files were not stored</AlertTitle>
+          <AlertTitle>The product was saved as a draft, but some steps did not finish</AlertTitle>
           <AlertDescription className="space-y-3">
             <ul className="list-disc pl-5">
               {failures.map((f) => (
-                <li key={`${f.kind}-${f.file.name}`}>
-                  {f.file.name}: {f.reason}
+                <li key={`${f.kind}-${f.label}`}>
+                  {f.label}: {f.reason}
                 </li>
               ))}
             </ul>
             <div className="flex flex-wrap gap-2">
               <Button type="button" variant="outline" size="sm" onClick={retryFailed} disabled={uploading}>
-                {uploading ? 'Retrying...' : 'Retry upload'}
+                {uploading ? 'Retrying...' : 'Retry'}
               </Button>
               <Button type="button" variant="outline" size="sm" render={<Link href={`/admin/products/${createdId}`} />}>
                 Open the product
@@ -161,6 +215,40 @@ export default function AdminNewProductPage() {
           isLoading={createMutation.isPending || uploading}
           serverErrors={serverFieldErrors}
         />
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Initial stock (optional)</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Label htmlFor="initial-stock">Units on hand</Label>
+            <Input
+              id="initial-stock"
+              type="number"
+              min={0}
+              max={MAX_STOCK_QUANTITY}
+              step="1"
+              inputMode="numeric"
+              className="max-w-40"
+              placeholder="0"
+              value={initialStock}
+              aria-invalid={!!stockProblem}
+              onChange={(e) => {
+                setInitialStock(e.target.value);
+                setStockProblem(null);
+              }}
+            />
+            <p className="text-xs text-muted-foreground">
+              Recorded as &quot;{INITIAL_STOCK_REASON}&quot; once the product is created. The product stays a draft,
+              so shoppers cannot buy it until you publish it.
+            </p>
+            {stockProblem && (
+              <p role="alert" className="text-sm text-destructive">
+                {stockProblem}
+              </p>
+            )}
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>

@@ -59,6 +59,10 @@ export const queryKeys = {
     lists: () => [...queryKeys.inventory.all, 'list'] as const,
     list: (filters: object) => [...queryKeys.inventory.lists(), filters] as const,
     detail: (productId: string) => [...queryKeys.inventory.all, 'detail', productId] as const,
+    /** The full record an administrator sees; the shopper view lives under detail. */
+    adminDetail: (productId: string) => [...queryKeys.inventory.all, 'admin-detail', productId] as const,
+    movements: (productId: string, paging: object) =>
+      [...queryKeys.inventory.all, 'movements', productId, paging] as const,
   },
   audit: {
     all: ['audit'] as const,

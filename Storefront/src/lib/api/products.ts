@@ -58,6 +58,8 @@ export interface AdminProductFilters {
   categoryId?: string;
   brandId?: string;
   filamentType?: string;
+  /** Looks up exactly these products (used to name the rows of the inventory list). */
+  productIds?: string[];
   sortBy?: 'name' | 'price' | 'createdAt' | 'status';
   sortDir?: 'asc' | 'desc';
   page?: number;

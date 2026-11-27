@@ -19,7 +19,7 @@ public class StockLifecycleFlowTests : IntegrationTestBase
 
         (await Client.PostAsJsonAsync(
             $"/inventory/{productId}/adjustments",
-            new { delta = 10, reason = "test seed" })).EnsureSuccessStatusCode();
+            new { mode = "delta", quantity = 10, reason = "test seed" })).EnsureSuccessStatusCode();
 
         await PublishToExchange("orders-exchange", "order.created", new
         {
@@ -56,7 +56,7 @@ public class StockLifecycleFlowTests : IntegrationTestBase
 
         (await Client.PostAsJsonAsync(
             $"/inventory/{productId}/adjustments",
-            new { delta = 10, reason = "test seed" })).EnsureSuccessStatusCode();
+            new { mode = "delta", quantity = 10, reason = "test seed" })).EnsureSuccessStatusCode();
 
         await PublishToExchange("orders-exchange", "order.created", new
         {
@@ -93,7 +93,7 @@ public class StockLifecycleFlowTests : IntegrationTestBase
 
         (await Client.PostAsJsonAsync(
             $"/inventory/{productId}/adjustments",
-            new { delta = 8, reason = "test seed" })).EnsureSuccessStatusCode();
+            new { mode = "delta", quantity = 8, reason = "test seed" })).EnsureSuccessStatusCode();
 
         await PublishToExchange("orders-exchange", "order.created", new
         {

@@ -10,6 +10,10 @@ public interface IInventoryRepository
     Task<List<InventoryItem>> GetFilteredAsync(InventoryFilter filter, CancellationToken ct);
     Task<int> CountAsync(InventoryFilter filter, CancellationToken ct);
 
+    /// <summary>A product's history, newest first.</summary>
+    Task<List<InventoryMovement>> GetMovementsAsync(Guid productId, int page, int pageSize, CancellationToken ct);
+    Task<int> CountMovementsAsync(Guid productId, CancellationToken ct);
+
     Task<List<StockReservation>> GetReservationsByOrderIdAsync(Guid orderId, CancellationToken ct);
     Task<List<StockReservation>> GetActiveExpiredReservationsAsync(DateTime asOf, int batchSize, CancellationToken ct);
 
@@ -33,7 +37,11 @@ public interface ITransactionScope : IAsyncDisposable
 
 public class InventoryFilter
 {
-    public bool? DepletedOnly { get; init; }
+    /// <summary>Only products that are out of stock, or low on stock. Empty means every product.</summary>
+    public StockStatus? Status { get; init; }
+
+    /// <summary>Only these products. Used to put names from the catalog on the list.</summary>
+    public IReadOnlyList<Guid>? ProductIds { get; init; }
     public int Page { get; init; } = 1;
     public int PageSize { get; init; } = 20;
 }

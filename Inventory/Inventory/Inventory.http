@@ -27,7 +27,8 @@ POST {{host}}/inventory/{{productId}}/adjustments
 Content-Type: application/json
 
 {
-  "delta": 50,
+  "mode": "delta",
+  "quantity": 50,
   "reason": "Initial stock received from supplier"
 }
 
@@ -39,6 +40,7 @@ POST {{host}}/inventory/{{productId}}/adjustments
 Content-Type: application/json
 
 {
-  "delta": -5,
+  "mode": "delta",
+  "quantity": -5,
   "reason": "Damaged goods removed from warehouse"
 }

@@ -22,6 +22,10 @@ public class InventoryMovement
     public string? Reason { get; private set; }
     public string? CorrelationId { get; private set; }
 
+    /// <summary>The signed-in admin behind a manual change. Empty for changes the order flow made (FR-027).</summary>
+    public Guid? ActorId { get; private set; }
+    public string? ActorEmail { get; private set; }
+
     public DateTime OccurredAt { get; private set; }
 
     private InventoryMovement() { }
@@ -36,7 +40,9 @@ public class InventoryMovement
         Guid? orderId = null,
         Guid? reservationId = null,
         string? reason = null,
-        string? correlationId = null)
+        string? correlationId = null,
+        Guid? actorId = null,
+        string? actorEmail = null)
     {
         Id = Guid.NewGuid();
         ProductId = productId;
@@ -49,6 +55,8 @@ public class InventoryMovement
         SourceTrigger = sourceTrigger;
         Reason = reason;
         CorrelationId = correlationId;
+        ActorId = actorId;
+        ActorEmail = actorEmail;
         OccurredAt = DateTime.UtcNow;
     }
 }

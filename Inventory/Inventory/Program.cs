@@ -127,6 +127,8 @@ var inventory = app.MapGroup("/inventory");
 inventory.MapGetInventoryByProductId();
 inventory.MapListInventory();
 inventory.MapAdjustInventory();
+inventory.MapGetInventoryMovements();
+inventory.MapSetLowStockThreshold();
 inventory.MapGetInventoryAudit();
 
 app.Run();

@@ -1,123 +1,198 @@
 'use client';
 
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
+import Link from 'next/link';
+import { History, SlidersHorizontal, Gauge } from 'lucide-react';
+import { useAdminProducts } from '@/hooks/queries/use-admin-products';
 import { useInventoryList } from '@/hooks/queries/use-inventory';
-import { adjustStock } from '@/lib/api/inventory';
-import { stockAdjustmentSchema, type StockAdjustmentFormValues } from '@/schemas/inventory';
-import { AvailabilityBadge } from '@/components/products/availability-badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { EmptyState } from '@/components/shared/empty-state';
 import { ErrorFallback } from '@/components/shared/error-fallback';
 import { TableSkeleton } from '@/components/shared/loading-skeletons';
-import { queryKeys } from '@/lib/constants';
+import { StockAdjustDialog } from '@/components/admin/stock-adjust-dialog';
+import { StockHistorySheet } from '@/components/admin/stock-history-sheet';
+import { StockStatusBadge } from '@/components/admin/stock-status-badge';
+import { StockThresholdForm } from '@/components/admin/stock-threshold-form';
+import type { StockStatusFilter } from '@/lib/api/inventory';
+
+const PAGE_SIZE = 20;
+
+const FILTERS: { value: StockStatusFilter; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'low', label: 'Low stock' },
+  { value: 'out', label: 'Out of stock' },
+];
+
+type Dialog = { kind: 'adjust' | 'history' | 'threshold'; productId: string } | null;
 
 export default function AdminInventoryPage() {
-  const [depletedOnly, setDepletedOnly] = useState(false);
+  const [status, setStatus] = useState<StockStatusFilter>('all');
   const [page, setPage] = useState(1);
-  const { data, isLoading, isError, refetch } = useInventoryList({ depletedOnly, page, pageSize: 20 });
-  const queryClient = useQueryClient();
+  const [dialog, setDialog] = useState<Dialog>(null);
 
-  const [adjustProductId, setAdjustProductId] = useState<string | null>(null);
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<StockAdjustmentFormValues>({
-    resolver: zodResolver(stockAdjustmentSchema),
-  });
+  const { data, isLoading, isError, refetch } = useInventoryList({ status, page, pageSize: PAGE_SIZE });
 
-  const adjustMutation = useMutation({
-    mutationFn: (data: StockAdjustmentFormValues & { productId: string }) =>
-      adjustStock(data.productId, data.delta, data.reason),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.inventory.all });
-      setAdjustProductId(null);
-      reset();
-    },
+  const productIds = useMemo(() => data?.items.map((i) => i.productId) ?? [], [data]);
+  const { data: products } = useAdminProducts({
+    productIds,
+    page: 1,
+    pageSize: Math.max(productIds.length, 1),
   });
+  const names = useMemo(
+    () => new Map((products?.items ?? []).map((p) => [p.id, p.name] as const)),
+    [products]
+  );
+
+  const selected = dialog ? (data?.items.find((i) => i.productId === dialog.productId) ?? null) : null;
+  const selectedName = dialog ? names.get(dialog.productId) : undefined;
 
   if (isError) return <ErrorFallback onRetry={() => refetch()} />;
 
+  const close = (kind: NonNullable<Dialog>['kind']) => (open: boolean) => {
+    if (!open) setDialog((d) => (d?.kind === kind ? null : d));
+  };
+
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Inventory</h1>
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl font-bold">Inventory</h1>
+        <p className="text-sm text-muted-foreground">
+          The products that need attention first: out of stock, then low on stock.
+        </p>
+      </div>
 
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" checked={depletedOnly} onChange={(e) => { setDepletedOnly(e.target.checked); setPage(1); }} />
-        Show depleted only
-      </label>
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Stock filter">
+        {FILTERS.map((f) => (
+          <Button
+            key={f.value}
+            type="button"
+            size="sm"
+            variant={status === f.value ? 'default' : 'outline'}
+            aria-pressed={status === f.value}
+            onClick={() => {
+              setStatus(f.value);
+              setPage(1);
+            }}
+          >
+            {f.label}
+          </Button>
+        ))}
+      </div>
 
       {isLoading ? (
-        <TableSkeleton rows={5} cols={5} />
+        <TableSkeleton rows={5} cols={7} />
+      ) : data && data.items.length === 0 ? (
+        <EmptyState
+          title={status === 'all' ? 'No stock records yet' : 'Nothing to show'}
+          description={
+            status === 'all'
+              ? 'Products get a stock record when their first stock is added.'
+              : 'No products are in this state right now.'
+          }
+        />
       ) : data ? (
         <>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Product ID</TableHead>
-                <TableHead>On Hand</TableHead>
+                <TableHead>Product</TableHead>
+                <TableHead>On hand</TableHead>
                 <TableHead>Reserved</TableHead>
                 <TableHead>Available</TableHead>
+                <TableHead>Threshold</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead></TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.items.map((item) => (
-                <TableRow key={item.productId}>
-                  <TableCell className="font-mono text-xs">{item.productId.slice(0, 8)}</TableCell>
-                  <TableCell>{item.onHand}</TableCell>
-                  <TableCell>{item.reserved}</TableCell>
-                  <TableCell>{item.available}</TableCell>
-                  <TableCell><AvailabilityBadge available={item.available} /></TableCell>
-                  <TableCell>
-                    <Dialog>
-                      <DialogTrigger
-                        render={
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setAdjustProductId(item.productId)}
-                          />
-                        }
+              {data.items.map((item) => {
+                const name = names.get(item.productId);
+                return (
+                  <TableRow key={item.productId} data-testid="inventory-row">
+                    <TableCell>
+                      <Link
+                        href={`/admin/products/${item.productId}`}
+                        className="font-medium hover:underline"
                       >
-                        Adjust
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader><DialogTitle>Stock Adjustment</DialogTitle></DialogHeader>
-                        <form onSubmit={handleSubmit((data) => adjustMutation.mutate({ ...data, productId: adjustProductId! }))} className="space-y-4">
-                          <div className="space-y-2">
-                            <Label>Delta (positive to add, negative to remove)</Label>
-                            <Input type="number" {...register('delta', { valueAsNumber: true })} />
-                            {errors.delta && <p className="text-sm text-destructive">{errors.delta.message}</p>}
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Reason</Label>
-                            <Input {...register('reason')} />
-                            {errors.reason && <p className="text-sm text-destructive">{errors.reason.message}</p>}
-                          </div>
-                          <Button type="submit" disabled={adjustMutation.isPending}>
-                            {adjustMutation.isPending ? 'Adjusting...' : 'Submit'}
-                          </Button>
-                        </form>
-                      </DialogContent>
-                    </Dialog>
-                  </TableCell>
-                </TableRow>
-              ))}
+                        {name ?? <span className="font-mono text-xs">{item.productId.slice(0, 8)}</span>}
+                      </Link>
+                    </TableCell>
+                    <TableCell>{item.onHand}</TableCell>
+                    <TableCell>{item.reserved}</TableCell>
+                    <TableCell>{item.available}</TableCell>
+                    <TableCell>{item.lowStockThreshold}</TableCell>
+                    <TableCell>
+                      <StockStatusBadge status={item.status} />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setDialog({ kind: 'adjust', productId: item.productId })}
+                        >
+                          <SlidersHorizontal className="mr-1 h-3.5 w-3.5" aria-hidden />
+                          Adjust
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setDialog({ kind: 'history', productId: item.productId })}
+                        >
+                          <History className="mr-1 h-3.5 w-3.5" aria-hidden />
+                          History
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          aria-label={`Low-stock threshold${name ? ` for ${name}` : ''}`}
+                          onClick={() => setDialog({ kind: 'threshold', productId: item.productId })}
+                        >
+                          <Gauge className="h-3.5 w-3.5" aria-hidden />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
+
           {data.totalPages > 1 && (
             <div className="flex justify-center gap-2">
-              <Button variant="outline" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>Previous</Button>
-              <span className="flex items-center px-4 text-sm text-muted-foreground">Page {page} of {data.totalPages}</span>
-              <Button variant="outline" disabled={page >= data.totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
+              <Button variant="outline" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
+                Previous
+              </Button>
+              <span className="flex items-center px-4 text-sm text-muted-foreground">
+                Page {page} of {data.totalPages}
+              </span>
+              <Button variant="outline" disabled={page >= data.totalPages} onClick={() => setPage((p) => p + 1)}>
+                Next
+              </Button>
             </div>
           )}
         </>
       ) : null}
+
+      <StockAdjustDialog
+        record={selected}
+        productName={selectedName}
+        open={dialog?.kind === 'adjust'}
+        onOpenChange={close('adjust')}
+      />
+      <StockThresholdForm
+        record={selected}
+        productName={selectedName}
+        open={dialog?.kind === 'threshold'}
+        onOpenChange={close('threshold')}
+      />
+      <StockHistorySheet
+        productId={dialog?.kind === 'history' ? dialog.productId : null}
+        productName={selectedName}
+        open={dialog?.kind === 'history'}
+        onOpenChange={close('history')}
+      />
     </div>
   );
 }

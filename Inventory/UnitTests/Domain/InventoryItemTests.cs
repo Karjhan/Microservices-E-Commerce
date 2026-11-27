@@ -1,4 +1,5 @@
 using Domain.Entities;
+using Domain.Enums;
 using Domain.Exceptions;
 using FluentAssertions;
 
@@ -184,5 +185,93 @@ public class InventoryItemTests
         item.Reserve(1);
 
         item.RowVersion.Should().NotEqual(before);
+    }
+
+    [Fact]
+    public void SetOnHand_Should_Return_The_Change_And_Set_The_Count()
+    {
+        var item = new InventoryItem(Guid.NewGuid(), initialOnHand: 10);
+
+        var delta = item.SetOnHand(7);
+
+        delta.Should().Be(-3);
+        item.OnHandQuantity.Should().Be(7);
+    }
+
+    [Fact]
+    public void SetOnHand_Should_Refuse_Less_Than_Reserved()
+    {
+        var item = new InventoryItem(Guid.NewGuid(), initialOnHand: 10);
+        item.Reserve(6);
+
+        var act = () => item.SetOnHand(5);
+
+        act.Should().Throw<InvalidAdjustmentException>().Which.Code
+            .Should().Be(InvalidAdjustmentException.BelowReservedCode);
+        item.OnHandQuantity.Should().Be(10);
+    }
+
+    [Fact]
+    public void Adjust_Should_Refuse_Beyond_The_Largest_Quantity()
+    {
+        var item = new InventoryItem(Guid.NewGuid(), initialOnHand: 1);
+
+        var act = () => item.Adjust(int.MaxValue);
+
+        act.Should().Throw<InvalidAdjustmentException>();
+    }
+
+    [Fact]
+    public void A_new_item_gets_the_default_threshold_unless_one_is_given()
+    {
+        new InventoryItem(Guid.NewGuid(), 1).LowStockThreshold.Should().Be(InventoryItem.DefaultLowStockThreshold);
+        new InventoryItem(Guid.NewGuid(), 1, lowStockThreshold: 12).LowStockThreshold.Should().Be(12);
+    }
+
+    [Theory]
+    [InlineData(0, 5, StockStatus.Out)]
+    [InlineData(1, 5, StockStatus.Low)]
+    [InlineData(5, 5, StockStatus.Low)]
+    [InlineData(6, 5, StockStatus.Ok)]
+    [InlineData(1, 0, StockStatus.Ok)]
+    public void Status_Should_Follow_Available_And_Threshold(int available, int threshold, StockStatus expected)
+    {
+        var item = new InventoryItem(Guid.NewGuid(), available, threshold);
+
+        item.Status.Should().Be(expected);
+    }
+
+    [Fact]
+    public void Status_Should_Count_Reserved_Units_As_Unavailable()
+    {
+        var item = new InventoryItem(Guid.NewGuid(), initialOnHand: 8, lowStockThreshold: 5);
+        item.Reserve(4);
+
+        item.Status.Should().Be(StockStatus.Low);
+    }
+
+    [Fact]
+    public void SetLowStockThreshold_Should_Store_It_And_Change_The_Version()
+    {
+        var item = new InventoryItem(Guid.NewGuid(), initialOnHand: 10);
+        var before = item.RowVersion.ToArray();
+
+        item.SetLowStockThreshold(20);
+
+        item.LowStockThreshold.Should().Be(20);
+        item.Status.Should().Be(StockStatus.Low);
+        item.RowVersion.Should().NotEqual(before);
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(InventoryItem.MaxLowStockThreshold + 1)]
+    public void SetLowStockThreshold_Should_Refuse_Out_Of_Range_Values(int threshold)
+    {
+        var item = new InventoryItem(Guid.NewGuid(), initialOnHand: 10);
+
+        var act = () => item.SetLowStockThreshold(threshold);
+
+        act.Should().Throw<InvalidAdjustmentException>();
     }
 }

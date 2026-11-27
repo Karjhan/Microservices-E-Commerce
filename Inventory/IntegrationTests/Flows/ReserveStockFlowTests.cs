@@ -18,7 +18,7 @@ public class ReserveStockFlowTests : IntegrationTestBase
 
         var seedResponse = await Client.PostAsJsonAsync(
             $"/inventory/{productId}/adjustments",
-            new { delta = 10, reason = "integration test seed" });
+            new { mode = "delta", quantity = 10, reason = "integration test seed" });
         seedResponse.EnsureSuccessStatusCode();
 
         var orderId = Guid.NewGuid();
@@ -54,7 +54,7 @@ public class ReserveStockFlowTests : IntegrationTestBase
 
         var seedResponse = await Client.PostAsJsonAsync(
             $"/inventory/{productId}/adjustments",
-            new { delta = 2, reason = "integration test seed" });
+            new { mode = "delta", quantity = 2, reason = "integration test seed" });
         seedResponse.EnsureSuccessStatusCode();
 
         var orderId = Guid.NewGuid();
@@ -135,5 +135,8 @@ public class InventoryItemResponse
     public int ReservedQuantity { get; set; }
     public int AvailableQuantity { get; set; }
     public bool IsDepleted { get; set; }
+    public int LowStockThreshold { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public string Version { get; set; } = string.Empty;
     public DateTime UpdatedAt { get; set; }
 }

@@ -52,6 +52,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<IAuditReader, EfAuditReader>();
         services.AddScoped<IIdempotencyStore, IdempotencyStore>();
         services.AddSingleton<IReservationPolicy, ReservationPolicy>();
+        services.AddSingleton<IStockSettings, StockSettings>();
 
         var redisOptions = config.GetSection("Redis").Get<RedisOptions>();
 

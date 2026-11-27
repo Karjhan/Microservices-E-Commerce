@@ -6,6 +6,7 @@ using Infrastructure.Abstractions.Persistence;
 using Infrastructure.Caching;
 using Infrastructure.Configuration;
 using Infrastructure.Messaging;
+using Infrastructure.Messaging.Consumers;
 using Infrastructure.Observability;
 using Infrastructure.Persistence;
 using Infrastructure.Persistence.Repositories;
@@ -85,6 +86,10 @@ public static class InfrastructureServiceCollectionExtensions
         });
 
         services.AddScoped<IEventPublisher, RabbitMqPublisher>();
+
+        // Stock changes from the Inventory service move a product between Active and OutOfStock (US4).
+        services.AddScoped<StockStatusSynchronizer>();
+        services.AddHostedService<InventoryUpdatedConsumer>();
 
         services.AddSingleton<IMinioClient>(sp =>
         {

@@ -713,7 +713,7 @@ async def adjust_inventory(
 ) -> None:
     resp = await client.post(
         f"{gateway}/inventory/{product_id}/adjustments",
-        json={"delta": delta, "reason": "Initial warehouse stock for dev seed"},
+        json={"mode": "delta", "quantity": delta, "reason": "Initial warehouse stock for dev seed"},
         headers=auth_headers(admin),
     )
     if resp.status_code != 200:

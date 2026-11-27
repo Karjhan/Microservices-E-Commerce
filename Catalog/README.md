@@ -34,7 +34,7 @@ GraphRAG ingestion worker) can keep their own read models in sync.
 | Service name | `catalog-service` (`ServiceName` setting, used as the OpenTelemetry service name); docker-compose service/container name: `catalog` |
 | Responsibility | CRUD for products, product images (object storage), product attributes, product relations; product listing with filtering and pagination |
 | Datastores | PostgreSQL (database `catalog`), Redis (read cache), MinIO (bucket `products`) |
-| Messaging | **Publisher only** on RabbitMQ topic exchange `catalog-exchange`. The service declares no queues and consumes no messages |
+| Messaging | Publishes on RabbitMQ topic exchange `catalog-exchange`. Consumes one event: `inventory.updated` from `inventory-exchange` (queue `catalog.inventory.updated`), which moves a product between `Active` and `OutOfStock` (see Topology) |
 | HTTP callers | Reached through the API gateway (the repo's gateway proxies `/products/**` to `http://catalog:8080`) or directly during development |
 | HTTP dependencies | None (it does not call other services over HTTP) |
 | Event consumers | The GraphRAG service is configured (in `docker/docker-compose.yml`) with `RABBITMQ_EXCHANGE=catalog-exchange` and queue `graphrag-ingestion`; its consumer binds the product, relation and attribute routing keys listed below |
@@ -465,7 +465,7 @@ that the configured bucket exists. The response status code is the default ASP.N
 
 | Item | Value |
 |---|---|
-| Role | Publisher only; the service never consumes and declares no queues or bindings |
+| Role | Publisher, plus one consumer (below) |
 | Exchange | `catalog-exchange` |
 | Exchange type | `topic` |
 | Durable | `true` (auto-delete not set, so `false`) |
@@ -479,6 +479,14 @@ Events are published from the MediatR handlers **after** the database commit and
 outbox: if the broker is unavailable the HTTP call fails with `500` after the data has already been committed, and
 failed publishes are not retried. Delivery is therefore at-most-once. Queues, retry and dead-letter policy are the
 responsibility of each consumer (for example `graphrag-ingestion` in the GraphRAG service).
+
+### Consumed events
+
+| Exchange | Routing key | Queue | Consumer |
+|---|---|---|---|
+| `inventory-exchange` | `inventory.updated` | `catalog.inventory.updated` (durable) | `InventoryUpdatedConsumer` |
+
+The payload carries `ProductId` and `AvailableQuantity`. An `Active` product with nothing available becomes `OutOfStock`; an `OutOfStock` product with stock again becomes `Active`. `Draft`, `Inactive` and `Discontinued` products are never touched, because an administrator chose those. A change saves the product, removes `product:{id}` and `products:*` from the cache and publishes `product.status.changed`. Messages are acknowledged after handling and requeued on failure; events for unknown products are acknowledged and ignored.
 
 ### Published events
 

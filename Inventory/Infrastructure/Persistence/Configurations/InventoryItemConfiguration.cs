@@ -18,8 +18,13 @@ public class InventoryItemConfiguration : IEntityTypeConfiguration<InventoryItem
         builder.Property(x => x.OnHandQuantity).IsRequired();
         builder.Property(x => x.ReservedQuantity).IsRequired();
 
+        builder.Property(x => x.LowStockThreshold)
+            .IsRequired()
+            .HasDefaultValue(InventoryItem.DefaultLowStockThreshold);
+
         builder.Ignore(x => x.AvailableQuantity);
         builder.Ignore(x => x.IsDepleted);
+        builder.Ignore(x => x.Status);
 
         builder.Property(x => x.RowVersion)
             .HasColumnType("bytea")

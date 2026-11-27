@@ -70,6 +70,8 @@ public class GatewayAccessTests : IAsyncLifetime
         ["GET", "/payments/admin/audit"],
         ["GET", "/inventory"],
         ["POST", "/inventory/11111111-1111-1111-1111-111111111111/adjustments"],
+        ["GET", "/inventory/11111111-1111-1111-1111-111111111111/movements"],
+        ["PUT", "/inventory/11111111-1111-1111-1111-111111111111/threshold"],
         ["GET", "/inventory/admin/audit"],
         ["POST", "/products"],
         ["PUT", "/products/11111111-1111-1111-1111-111111111111"],
