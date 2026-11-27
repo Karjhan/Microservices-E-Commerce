@@ -15,7 +15,6 @@ const productSizeSchema = z.object({
   depthMm: z.number().min(0),
 });
 
-const materials = ['PLA', 'ABS', 'PETG', 'Resin', 'Nylon', 'TPU'] as const;
 const printerTypes = ['FDM', 'SLA', 'SLS'] as const;
 
 /** Prices are euro amounts: two decimals at most, checked in cents to avoid floating-point noise. */
@@ -36,15 +35,17 @@ export const createProductSchema = z.object({
     .min(0, 'Price cannot be negative')
     .refine(hasAtMostTwoDecimals, 'Price can have at most two decimal places'),
   categoryId: z.string().min(1, 'Category is required'),
+  /** Optional: null leaves the product without a brand. */
+  brandId: z.string().min(1).nullable(),
+  filamentTypeIds: z.array(z.string()).min(1, 'At least one filament type required'),
   currency: z.literal('EUR', { error: 'Only EUR is supported' }),
   settings: printSettingsSchema,
   size: productSizeSchema,
   tags: z.array(z.string()),
-  supportedMaterials: z.array(z.enum(materials)).min(1, 'At least one material required'),
   compatiblePrinters: z.array(z.enum(printerTypes)).min(1, 'At least one printer type required'),
 });
 
-export const updateProductSchema = createProductSchema.omit({ categoryId: true }).partial();
+export const updateProductSchema = createProductSchema.partial();
 
 export const addAttributeSchema = z.object({
   key: z.string().min(1, 'Key is required'),

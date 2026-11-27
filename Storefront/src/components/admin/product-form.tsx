@@ -10,9 +10,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { NativeSelect } from '@/components/shared/native-select';
+import { useBrands } from '@/hooks/queries/use-brands';
+import { useCategories } from '@/hooks/queries/use-categories';
+import { useFilamentTypes } from '@/hooks/queries/use-filament-types';
 import type { Product } from '@/types/product';
-
-const MATERIALS = ['PLA', 'ABS', 'PETG', 'Resin', 'Nylon', 'TPU'] as const;
 const PRINTERS = ['FDM', 'SLA', 'SLS'] as const;
 
 const FORM_DEFAULTS: CreateProductFormValues = {
@@ -21,9 +23,10 @@ const FORM_DEFAULTS: CreateProductFormValues = {
   longDescription: '',
   price: 0,
   categoryId: '',
+  brandId: null,
+  filamentTypeIds: [],
   currency: 'EUR',
   tags: [],
-  supportedMaterials: [],
   compatiblePrinters: [],
   settings: {
     layerHeight: 0.2,
@@ -43,9 +46,10 @@ export function productToFormValues(product: Product): CreateProductFormValues {
     longDescription: product.longDescription,
     price: product.price,
     categoryId: product.categoryId,
+    brandId: product.brand?.id ?? null,
+    filamentTypeIds: (product.filamentTypes ?? []).map((f) => f.id),
     currency: 'EUR',
     tags: product.tags ?? [],
-    supportedMaterials: product.supportedMaterials ?? [],
     compatiblePrinters: product.compatiblePrinters ?? [],
     settings: {
       layerHeight: product.settings?.layerHeight ?? FORM_DEFAULTS.settings.layerHeight,
@@ -108,8 +112,9 @@ export function ProductForm({
       price: 'price',
       currency: 'currency',
       categoryid: 'categoryId',
+      brandid: 'brandId',
+      filamenttypeids: 'filamentTypeIds',
       tags: 'tags',
-      supportedmaterials: 'supportedMaterials',
       compatibleprinters: 'compatiblePrinters',
     };
     for (const [field, messages] of Object.entries(serverErrors)) {
@@ -118,13 +123,27 @@ export function ProductForm({
     }
   }, [serverErrors, setError]);
 
-  const selectedMaterials = watch('supportedMaterials') || [];
+  const selectedFilamentTypeIds = watch('filamentTypeIds') || [];
+  const selectedBrandId = watch('brandId');
+  const selectedCategoryId = watch('categoryId');
   const selectedPrinters = watch('compatiblePrinters') || [];
   const tags = watch('tags') || [];
 
-  const toggleMaterial = (m: (typeof MATERIALS)[number]) => {
-    const next = selectedMaterials.includes(m) ? selectedMaterials.filter((x) => x !== m) : [...selectedMaterials, m];
-    setValue('supportedMaterials', next, { shouldValidate: true });
+  // Only active entries can be chosen. An entry the product already has stays listed even if it was deactivated since.
+  const brands = useBrands(true);
+  const categories = useCategories(true);
+  const filamentTypes = useFilamentTypes(true);
+  const brandOptions = (brands.data ?? []).filter((b) => b.isActive || b.id === defaultValues?.brandId);
+  const categoryOptions = (categories.data ?? []).filter((c) => c.isActive || c.id === defaultValues?.categoryId);
+  const filamentTypeOptions = (filamentTypes.data ?? []).filter(
+    (f) => f.isActive || (defaultValues?.filamentTypeIds ?? []).includes(f.id)
+  );
+
+  const toggleFilamentType = (id: string) => {
+    const next = selectedFilamentTypeIds.includes(id)
+      ? selectedFilamentTypeIds.filter((x) => x !== id)
+      : [...selectedFilamentTypeIds, id];
+    setValue('filamentTypeIds', next, { shouldValidate: true });
   };
 
   const togglePrinter = (p: (typeof PRINTERS)[number]) => {
@@ -154,7 +173,7 @@ export function ProductForm({
             <Textarea id="longDescription" rows={4} aria-invalid={!!errors.longDescription} {...register('longDescription')} />
             <FieldError message={errors.longDescription?.message} />
           </div>
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-2">
               <Label htmlFor="price">Price</Label>
               <Input
@@ -177,9 +196,38 @@ export function ProductForm({
               <FieldError message={errors.currency?.message} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="categoryId">Category ID</Label>
-              <Input id="categoryId" aria-invalid={!!errors.categoryId} {...register('categoryId')} />
+              <Label htmlFor="categoryId">Category</Label>
+              <NativeSelect
+                id="categoryId"
+                aria-invalid={!!errors.categoryId}
+                value={selectedCategoryId}
+                onChange={(e) => setValue('categoryId', e.target.value, { shouldValidate: true })}
+              >
+                <option value="">{categories.isLoading ? 'Loading...' : 'Select a category'}</option>
+                {categoryOptions.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.isActive ? c.name : ` (inactive)`}
+                  </option>
+                ))}
+              </NativeSelect>
               <FieldError message={errors.categoryId?.message} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="brandId">Brand</Label>
+              <NativeSelect
+                id="brandId"
+                aria-invalid={!!errors.brandId}
+                value={selectedBrandId ?? ''}
+                onChange={(e) => setValue('brandId', e.target.value || null, { shouldValidate: true })}
+              >
+                <option value="">{brands.isLoading ? 'Loading...' : 'No brand'}</option>
+                {brandOptions.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.isActive ? b.name : ` (inactive)`}
+                  </option>
+                ))}
+              </NativeSelect>
+              <FieldError message={errors.brandId?.message} />
             </div>
           </div>
         </CardContent>
@@ -187,21 +235,27 @@ export function ProductForm({
 
       <Card>
         <CardHeader>
-          <CardTitle>Materials &amp; Printers</CardTitle>
+          <CardTitle>Filament &amp; Printers</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label>Supported Materials</Label>
-            <div className="flex flex-wrap gap-1" role="group" aria-label="Supported materials">
-              {MATERIALS.map((m) => (
-                <button key={m} type="button" onClick={() => toggleMaterial(m)} aria-pressed={selectedMaterials.includes(m)}>
-                  <Badge variant={selectedMaterials.includes(m) ? 'default' : 'outline'} className="cursor-pointer">
-                    {m}
+            <Label>Filament Types</Label>
+            <div className="flex flex-wrap gap-1" role="group" aria-label="Filament types">
+              {filamentTypes.isLoading && <span className="text-sm text-muted-foreground">Loading...</span>}
+              {filamentTypeOptions.map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => toggleFilamentType(f.id)}
+                  aria-pressed={selectedFilamentTypeIds.includes(f.id)}
+                >
+                  <Badge variant={selectedFilamentTypeIds.includes(f.id) ? 'default' : 'outline'} className="cursor-pointer">
+                    {f.isActive ? f.name : ` (inactive)`}
                   </Badge>
                 </button>
               ))}
             </div>
-            <FieldError message={errors.supportedMaterials?.message} />
+            <FieldError message={errors.filamentTypeIds?.message} />
           </div>
           <div className="space-y-2">
             <Label>Compatible Printers</Label>

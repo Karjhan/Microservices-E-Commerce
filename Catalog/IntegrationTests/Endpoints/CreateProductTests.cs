@@ -17,12 +17,11 @@ public class CreateProductTests : IntegrationTestBase
             ShortDescription = "Short",
             LongDescription = "Long",
             Price = 10.5m,
-            CategoryId = Guid.NewGuid(),
+            CategoryId = CatalogApiFactory.DefaultCategoryId,
             Currency = "EUR",
             Settings = new { },
             Size = new { },
             Tags = new[] { "tag1" },
-            SupportedMaterials = new[] { 0 },
             CompatiblePrinters = new[] { 0 }
         };
 

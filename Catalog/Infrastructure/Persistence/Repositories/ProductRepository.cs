@@ -26,6 +26,9 @@ public class ProductRepository : IProductRepository
             .Include(x => x.Model)
             .Include(x => x.Attributes)
             .Include(x => x.RelatedProducts)
+            .Include(x => x.Brand)
+            .Include(x => x.Category)
+            .Include(x => x.FilamentTypes).ThenInclude(x => x.FilamentType)
             .AsSplitQuery()
             .FirstOrDefaultAsync(x => x.Id == id, ct);
     }
@@ -66,11 +69,16 @@ public class ProductRepository : IProductRepository
             .Include(x => x.Model)
             .Include(x => x.Attributes)
             .Include(x => x.RelatedProducts)
+            .Include(x => x.Brand)
+            .Include(x => x.Category)
+            .Include(x => x.FilamentTypes).ThenInclude(x => x.FilamentType)
             .AsSplitQuery()
             .AsQueryable();
 
         if (filter.CategoryId.HasValue)
             query = query.Where(x => x.CategoryId == filter.CategoryId.Value);
+
+        query = ApplyReferenceFilters(query, filter.BrandId, filter.FilamentType);
 
         if (filter.MinPrice.HasValue)
             query = query.Where(x => x.Price >= filter.MinPrice.Value);
@@ -98,12 +106,6 @@ public class ProductRepository : IProductRepository
         {
             products = products
                 .Where(x => x.Tags.Any(t => filter.Tags.Contains(t)))
-                .ToList();
-        }
-        if (filter.Material.HasValue)
-        {
-            products = products
-                .Where(x => x.SupportedMaterials.Contains(filter.Material.Value))
                 .ToList();
         }
         if (filter.PrinterType.HasValue)
@@ -161,6 +163,8 @@ public class ProductRepository : IProductRepository
         if (filter.CategoryId.HasValue)
             query = query.Where(x => x.CategoryId == filter.CategoryId.Value);
 
+        query = ApplyReferenceFilters(query, filter.BrandId, filter.FilamentType);
+
         if (filter.ProductIds is not null)
         {
             var ids = filter.ProductIds;
@@ -201,6 +205,9 @@ public class ProductRepository : IProductRepository
             .Include(x => x.Model)
             .Include(x => x.Attributes)
             .Include(x => x.RelatedProducts)
+            .Include(x => x.Brand)
+            .Include(x => x.Category)
+            .Include(x => x.FilamentTypes).ThenInclude(x => x.FilamentType)
             .AsSplitQuery()
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
@@ -213,9 +220,28 @@ public class ProductRepository : IProductRepository
         CancellationToken ct)
     {
         var imageKeys = await _context.ProductImages.AsNoTracking().Select(x => x.ObjectKey).ToListAsync(ct);
+        var logoKeys = await _context.Brands.AsNoTracking()
+            .Where(x => x.LogoObjectKey != null)
+            .Select(x => x.LogoObjectKey!)
+            .ToListAsync(ct);
         var modelKeys = await _context.ProductModels.AsNoTracking().Select(x => x.ObjectKey).ToListAsync(ct);
 
-        return (imageKeys.ToHashSet(), modelKeys.ToHashSet());
+        return (imageKeys.Concat(logoKeys).ToHashSet(), modelKeys.ToHashSet());
+    }
+
+    /// <summary>Brand and filament-type filters run in the database (FR-024).</summary>
+    private static IQueryable<Product> ApplyReferenceFilters(IQueryable<Product> query, Guid? brandId, string? filamentType)
+    {
+        if (brandId.HasValue)
+            query = query.Where(x => x.BrandId == brandId.Value);
+
+        if (!string.IsNullOrWhiteSpace(filamentType))
+        {
+            var code = filamentType.Trim().ToLower();
+            query = query.Where(x => x.FilamentTypes.Any(l => l.FilamentType.Code.ToLower() == code));
+        }
+
+        return query;
     }
 
     private static string EscapeLike(string value) =>

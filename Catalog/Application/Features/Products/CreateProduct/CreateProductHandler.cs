@@ -10,6 +10,9 @@ namespace Application.Features.Products.CreateProduct;
 
 public class CreateProductHandler(
     IProductRepository repo,
+    ICategoryRepository categories,
+    IBrandRepository brands,
+    IFilamentTypeRepository filamentTypes,
     IEventPublisher publisher,
     ICacheService cache)
     : IRequestHandler<CreateProductCommand, Guid>
@@ -17,6 +20,13 @@ public class CreateProductHandler(
     public async Task<Guid> Handle(CreateProductCommand request, CancellationToken ct)
     {
         await ProductRules.ValidateAsync(repo, null, request.Name, request.Price, request.Currency, ct);
+
+        // New assignments must point at existing, active entries (FR-021).
+        await ProductReferenceRules.EnsureCategoryAsync(categories, request.CategoryId, null, ct);
+        await ProductReferenceRules.EnsureBrandAsync(brands, request.BrandId, null, ct);
+
+        var filamentTypeIds = await ProductReferenceRules.EnsureFilamentTypesAsync(
+            filamentTypes, request.FilamentTypeIds ?? [], [], ct);
 
         // New products start as drafts; an admin publishes them when ready (FR-016).
         var product = new Product(
@@ -34,8 +44,8 @@ public class CreateProductHandler(
         if (request.Tags is not null)
             product.SetTags(request.Tags);
 
-        if (request.SupportedMaterials is not null)
-            product.SetSupportedMaterials(request.SupportedMaterials);
+        product.SetBrand(request.BrandId);
+        product.SetFilamentTypes(filamentTypeIds);
 
         if (request.CompatiblePrinters is not null)
             product.SetCompatiblePrinters(request.CompatiblePrinters);
@@ -62,11 +72,16 @@ public class CreateProductHandler(
                 Key = a.Key,
                 Value = a.Value
             }).ToList(),
-            SupportedMaterials = product.SupportedMaterials.Select(x => x.ToString()).ToList(),
+            SupportedMaterials = await GetFilamentCodesAsync(filamentTypeIds, ct),
             CompatiblePrinters = product.CompatiblePrinters.Select(x => x.ToString()).ToList(),
             CreatedAt = product.CreatedAt
         }, "product.created");
 
         return product.Id;
     }
+
+    private async Task<List<string>> GetFilamentCodesAsync(List<Guid> ids, CancellationToken ct) =>
+        ids.Count == 0
+            ? []
+            : (await filamentTypes.GetByIdsAsync(ids, ct)).Select(x => x.Code).Order().ToList();
 }

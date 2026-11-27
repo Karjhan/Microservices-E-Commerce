@@ -22,6 +22,9 @@ public class CatalogApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     private readonly RabbitMqContainer _rabbit;
     private readonly MinioContainer _minio;
 
+    /// <summary>A category that exists in every test run, so products can be created without setting one up.</summary>
+    public static readonly Guid DefaultCategoryId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+
     public const string ImageBucket = "products";
     public const string ModelBucket = "product-models";
 
@@ -125,6 +128,12 @@ public class CatalogApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             var db = scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
 
             db.Database.Migrate();
+
+            if (!db.Categories.Any(x => x.Id == DefaultCategoryId))
+            {
+                db.Categories.Add(new Domain.Entities.Category(DefaultCategoryId, "Test category"));
+                db.SaveChanges();
+            }
         });
     }
     

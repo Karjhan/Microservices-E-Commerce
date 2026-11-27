@@ -19,6 +19,7 @@ import { formatFileSize } from '@/schemas/product';
 import type { ProductModel } from '@/types/product';
 import { formatCurrency, resolveMediaUrl } from '@/lib/utils';
 import dynamic from 'next/dynamic';
+import Image from 'next/image';
 
 const ProductViewer = dynamic(
   () => import('@/components/products/product-viewer').then((m) => m.ProductViewer),
@@ -105,6 +106,20 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
 
         <div className="space-y-6">
           <div>
+            {product.brand && (
+              <div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground" data-testid="product-brand">
+                {product.brand.logoUrl && (
+                  <Image
+                    src={resolveMediaUrl(product.brand.logoUrl)!}
+                    alt=""
+                    width={24}
+                    height={24}
+                    className="h-6 w-6 object-contain"
+                  />
+                )}
+                <span>{product.brand.name}</span>
+              </div>
+            )}
             <h1 className="text-3xl font-bold">{product.name}</h1>
             <p className="text-2xl font-bold mt-2">{formatCurrency(product.price, product.currency)}</p>
           </div>
@@ -112,8 +127,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
           <p className="text-muted-foreground">{product.shortDescription}</p>
 
           <div className="flex flex-wrap gap-2">
-            {product.supportedMaterials.map((m) => (
-              <Badge key={m} variant="secondary">{m}</Badge>
+            {product.filamentTypes.map((f) => (
+              <Badge key={f.id} variant="secondary">{f.name}</Badge>
             ))}
             {product.compatiblePrinters.map((p) => (
               <Badge key={p} variant="outline">{p}</Badge>

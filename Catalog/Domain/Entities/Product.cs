@@ -20,6 +20,10 @@ public class Product
     public ProductStatus Status { get; private set; }
 
     public Guid CategoryId { get; private set; }
+    public Category? Category { get; private set; }
+
+    public Guid? BrandId { get; private set; }
+    public Brand? Brand { get; private set; }
 
     public PrintSettings Settings { get; private set; } = new();
     public Dimensions Size { get; private set; } = new();
@@ -28,8 +32,9 @@ public class Product
     public List<ProductRelation> RelatedProducts { get; private set; } = new();
     public List<ProductAttribute> Attributes { get; private set; } = new();
 
-    public List<MaterialType> SupportedMaterials { get; private set; } = new();
     public List<PrinterType> CompatiblePrinters { get; private set; } = new();
+
+    public List<ProductFilamentType> FilamentTypes { get; private set; } = new();
 
     public List<ProductImage> Images { get; private set; } = new();
     public ProductModel? Model { get; private set; }
@@ -101,13 +106,10 @@ public class Product
         return RelatedProducts.RemoveAll(r => r.Id == relationId) > 0;
     }
 
-    public void AddCompatibility(MaterialType? material, PrinterType? printerType)
+    public void AddCompatibility(PrinterType printerType)
     {
-        if (material.HasValue && !SupportedMaterials.Contains(material.Value))
-            SupportedMaterials.Add(material.Value);
-
-        if (printerType.HasValue && !CompatiblePrinters.Contains(printerType.Value))
-            CompatiblePrinters.Add(printerType.Value);
+        if (!CompatiblePrinters.Contains(printerType))
+            CompatiblePrinters.Add(printerType);
     }
     
     public void SetTags(IEnumerable<string> tags)
@@ -129,9 +131,24 @@ public class Product
         AverageRating = averageRating;
     }
 
-    public void SetSupportedMaterials(IEnumerable<MaterialType> materials)
+    public void SetCategory(Guid categoryId)
     {
-        SupportedMaterials = materials.Distinct().ToList();
+        CategoryId = categoryId;
+    }
+
+    public void SetBrand(Guid? brandId)
+    {
+        BrandId = brandId;
+    }
+
+    public void SetFilamentTypes(IEnumerable<Guid> filamentTypeIds)
+    {
+        var wanted = filamentTypeIds.ToHashSet();
+
+        FilamentTypes.RemoveAll(x => !wanted.Contains(x.FilamentTypeId));
+
+        foreach (var id in wanted.Where(id => FilamentTypes.All(x => x.FilamentTypeId != id)))
+            FilamentTypes.Add(new ProductFilamentType(Id, id));
     }
 
     public void SetCompatiblePrinters(IEnumerable<PrinterType> printers)
@@ -154,23 +171,8 @@ public class Product
         Currency = currency;
     }
 
-    public bool RemoveCompatibility(MaterialType? material, PrinterType? printerType)
-    {
-        var removed = false;
+    public bool RemoveCompatibility(PrinterType printerType) => CompatiblePrinters.Remove(printerType);
 
-        if (material.HasValue)
-            removed |= SupportedMaterials.Remove(material.Value);
-
-        if (printerType.HasValue)
-            removed |= CompatiblePrinters.Remove(printerType.Value);
-
-        return removed;
-    }
-
-    /// <summary>
-    /// Moves the product to <paramref name="target"/> if the transition is allowed (FR-016).
-    /// Returns false when the product is already in that status.
-    /// </summary>
     public bool ChangeStatus(ProductStatus target)
     {
         if (target == Status)
@@ -186,10 +188,6 @@ public class Product
         return true;
     }
 
-    /// <summary>
-    /// Appends an image at the end of the gallery. The first image of a product is always primary;
-    /// an image added as primary replaces the current one.
-    /// </summary>
     public void AddImage(ProductImage image)
     {
         image.SetSortOrder(Images.Count == 0 ? 0 : Images.Max(x => x.SortOrder) + 1);
@@ -219,7 +217,6 @@ public class Product
         UpdatedAt = DateTime.UtcNow;
     }
 
-    /// <summary>Applies a new gallery order. The list must contain every image id exactly once.</summary>
     public void ReorderImages(IReadOnlyList<Guid> imageIds)
     {
         var expected = Images.Select(x => x.Id).ToHashSet();
@@ -235,7 +232,6 @@ public class Product
         UpdatedAt = DateTime.UtcNow;
     }
 
-    /// <summary>Removes an image. Call <see cref="PromoteLowestImage"/> afterwards when it was the primary one.</summary>
     public ProductImage? RemoveImage(Guid imageId)
     {
         var image = Images.FirstOrDefault(x => x.Id == imageId);
@@ -246,7 +242,6 @@ public class Product
         return image;
     }
 
-    /// <summary>Makes the image with the lowest sort order primary when none is (US2 scenario 3).</summary>
     public ProductImage? PromoteLowestImage()
     {
         if (Images.Count == 0 || Images.Any(x => x.IsPrimary))

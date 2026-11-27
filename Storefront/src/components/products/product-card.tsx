@@ -32,6 +32,7 @@ export function ProductCard({ product }: ProductCardProps) {
           )}
         </div>
         <CardContent className="p-4 space-y-2">
+          {product.brand && <p className="text-xs text-muted-foreground line-clamp-1">{product.brand.name}</p>}
           <h3 className="font-semibold line-clamp-1 group-hover:text-primary transition-colors">
             {product.name}
           </h3>

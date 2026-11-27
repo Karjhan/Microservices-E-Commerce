@@ -2,13 +2,25 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Package, BarChart3, ShoppingCart, CreditCard, ScrollText } from 'lucide-react';
+import {
+  Package,
+  BarChart3,
+  ShoppingCart,
+  CreditCard,
+  ScrollText,
+  Tag,
+  Spool,
+  FolderTree,
+} from 'lucide-react';
 import { SiteHeader } from '@/components/layout/site-header';
 import { SiteFooter } from '@/components/layout/site-footer';
 import { cn } from '@/lib/utils';
 
 export const staffNavItems = [
   { href: '/admin/products', label: 'Products', icon: Package },
+  { href: '/admin/brands', label: 'Brands', icon: Tag },
+  { href: '/admin/filament-types', label: 'Filament types', icon: Spool },
+  { href: '/admin/categories', label: 'Categories', icon: FolderTree },
   { href: '/admin/inventory', label: 'Inventory', icon: BarChart3 },
   { href: '/admin/orders', label: 'Orders', icon: ShoppingCart },
   { href: '/admin/payments', label: 'Payments', icon: CreditCard },

@@ -13,6 +13,11 @@ public class CatalogDbContext : DbContext
     public DbSet<Product> Products => Set<Product>();
     public DbSet<ProductImage> ProductImages => Set<ProductImage>();
     public DbSet<ProductModel> ProductModels => Set<ProductModel>();
+
+    public DbSet<Brand> Brands => Set<Brand>();
+    public DbSet<Category> Categories => Set<Category>();
+    public DbSet<FilamentType> FilamentTypes => Set<FilamentType>();
+    public DbSet<ProductFilamentType> ProductFilamentTypes => Set<ProductFilamentType>();
     
     public DbSet<ProductAttribute> ProductAttributes => Set<ProductAttribute>();
     public DbSet<ProductRelation> ProductRelations => Set<ProductRelation>();

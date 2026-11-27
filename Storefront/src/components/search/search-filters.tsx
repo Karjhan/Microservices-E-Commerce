@@ -4,10 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+import { useFilamentTypes } from '@/hooks/queries/use-filament-types';
 import type { SearchFilters as SearchFiltersType } from '@/types/search';
 
-const MATERIALS = ['PLA', 'ABS', 'PETG', 'Resin', 'Nylon', 'TPU'];
 const PRINTERS = ['FDM', 'SLA', 'SLS'];
 
 interface SearchFilterPanelProps {
@@ -17,6 +16,8 @@ interface SearchFilterPanelProps {
 }
 
 export function SearchFilterPanel({ filters, onChange, onClear }: SearchFilterPanelProps) {
+  // The materials are the admin-managed filament types; search matches on their codes.
+  const { data: filamentTypes } = useFilamentTypes();
   const toggleMaterial = (m: string) => {
     const current = filters.materials || [];
     const next = current.includes(m) ? current.filter((x) => x !== m) : [...current, m];
@@ -39,14 +40,14 @@ export function SearchFilterPanel({ filters, onChange, onClear }: SearchFilterPa
       <div className="space-y-2">
         <Label>Materials</Label>
         <div className="flex flex-wrap gap-1">
-          {MATERIALS.map((m) => (
+          {(filamentTypes ?? []).map((f) => (
             <Badge
-              key={m}
-              variant={filters.materials?.includes(m) ? 'default' : 'outline'}
+              key={f.id}
+              variant={filters.materials?.includes(f.code) ? 'default' : 'outline'}
               className="cursor-pointer"
-              onClick={() => toggleMaterial(m)}
+              onClick={() => toggleMaterial(f.code)}
             >
-              {m}
+              {f.name}
             </Badge>
           ))}
         </div>

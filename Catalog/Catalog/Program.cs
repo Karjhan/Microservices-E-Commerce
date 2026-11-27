@@ -1,6 +1,9 @@
 using System.Text.Json;
 using Application.Abstractions.Storage;
 using Application.DependencyInjection;
+using Catalog.Endpoints.Brands;
+using Catalog.Endpoints.Categories;
+using Catalog.Endpoints.FilamentTypes;
 using Catalog.Endpoints.Health;
 using Catalog.Endpoints.Products;
 using Catalog.Middleware;
@@ -177,5 +180,30 @@ products.MapGetProductAttributes();
 products.MapAddProductRelation();
 products.MapDeleteProductRelation();
 products.MapGetProductRelations();
+
+var brands = app.MapGroup("/brands");
+
+brands.MapListBrands();
+brands.MapCreateBrand();
+brands.MapUpdateBrand();
+brands.MapSetBrandActive();
+brands.MapDeleteBrand();
+brands.MapBrandLogo();
+
+var filamentTypes = app.MapGroup("/filament-types");
+
+filamentTypes.MapListFilamentTypes();
+filamentTypes.MapCreateFilamentType();
+filamentTypes.MapUpdateFilamentType();
+filamentTypes.MapSetFilamentTypeActive();
+filamentTypes.MapDeleteFilamentType();
+
+var categories = app.MapGroup("/categories");
+
+categories.MapListCategories();
+categories.MapCreateCategory();
+categories.MapUpdateCategory();
+categories.MapSetCategoryActive();
+categories.MapDeleteCategory();
 
 app.Run();

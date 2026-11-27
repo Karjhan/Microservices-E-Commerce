@@ -17,6 +17,10 @@ public class ProductDto
 
     public string Status { get; init; } = default!;
     public Guid CategoryId { get; init; }
+    public string? CategoryName { get; init; }
+
+    public ProductBrandDto? Brand { get; init; }
+    public List<ProductFilamentTypeDto> FilamentTypes { get; init; } = new();
 
     public PrintSettingsDto Settings { get; init; } = new();
     public DimensionsDto Size { get; init; } = new();
@@ -25,6 +29,7 @@ public class ProductDto
     public List<AttributeDto> Attributes { get; init; } = new();
     public List<RelationDto> RelatedProducts { get; init; } = new();
 
+    /// <summary>Codes of the filament types, kept so existing consumers that read materials keep working.</summary>
     public List<string> SupportedMaterials { get; init; } = new();
     public List<string> CompatiblePrinters { get; init; } = new();
 
@@ -52,6 +57,15 @@ public class ProductDto
             Currency = product.Currency,
             Status = product.Status.ToString(),
             CategoryId = product.CategoryId,
+            CategoryName = product.Category?.Name,
+            Brand = product.Brand is null
+                ? null
+                : new ProductBrandDto(product.Brand.Id, product.Brand.Name, product.Brand.LogoUrl),
+            FilamentTypes = product.FilamentTypes
+                .Where(x => x.FilamentType is not null)
+                .Select(x => new ProductFilamentTypeDto(x.FilamentType.Id, x.FilamentType.Name, x.FilamentType.Code))
+                .OrderBy(x => x.Name)
+                .ToList(),
             Settings = new PrintSettingsDto
             {
                 LayerHeight = product.Settings.LayerHeight,
@@ -80,7 +94,11 @@ public class ProductDto
                 RelatedProductId = r.RelatedProductId,
                 Type = r.Type
             }).ToList(),
-            SupportedMaterials = product.SupportedMaterials.Select(x => x.ToString()).ToList(),
+            SupportedMaterials = product.FilamentTypes
+                .Where(x => x.FilamentType is not null)
+                .Select(x => x.FilamentType.Code)
+                .Order()
+                .ToList(),
             CompatiblePrinters = product.CompatiblePrinters.Select(x => x.ToString()).ToList(),
             Images = product.Images
                 .OrderBy(x => x.SortOrder)

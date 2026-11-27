@@ -42,6 +42,9 @@ public static class InfrastructureServiceCollectionExtensions
         });
 
         services.AddScoped<IProductRepository, ProductRepository>();
+        services.AddScoped<IBrandRepository, BrandRepository>();
+        services.AddScoped<ICategoryRepository, CategoryRepository>();
+        services.AddScoped<IFilamentTypeRepository, FilamentTypeRepository>();
         services.AddScoped<IAuditWriter, EfAuditWriter>();
 
         var redisOptions = config.GetSection("Redis").Get<RedisOptions>();

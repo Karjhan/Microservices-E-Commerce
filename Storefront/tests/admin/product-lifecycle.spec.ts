@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
 
 /**
@@ -51,7 +50,7 @@ test.describe("product lifecycle", () => {
     await page.fill("#shortDescription", "End-to-end short description");
     await page.fill("#longDescription", "End-to-end long description");
     await page.fill("#price", "9.99");
-    await page.fill("#categoryId", randomUUID());
+    await page.selectOption("#categoryId", { index: 1 });
     await page.getByRole("button", { name: "PLA", exact: true }).click();
     await page.getByRole("button", { name: "FDM", exact: true }).click();
 

@@ -4,6 +4,9 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowDownAZ, ArrowUpAZ, Plus, Search } from 'lucide-react';
 import { useAdminProducts } from '@/hooks/queries/use-admin-products';
+import { useBrands } from '@/hooks/queries/use-brands';
+import { useFilamentTypes } from '@/hooks/queries/use-filament-types';
+import { NativeSelect } from '@/components/shared/native-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -45,6 +48,8 @@ export default function AdminProductsPage() {
   }, [search]);
 
   const { data, isLoading, isError, refetch } = useAdminProducts(filters);
+  const { data: brands } = useBrands(true);
+  const { data: filamentTypes } = useFilamentTypes(true);
 
   if (isError) return <ErrorFallback onRetry={() => refetch()} />;
 
@@ -92,6 +97,34 @@ export default function AdminProductsPage() {
           </SelectContent>
         </Select>
 
+        <NativeSelect
+          aria-label="Filter by brand"
+          className="sm:w-[160px]"
+          value={filters.brandId ?? ''}
+          onChange={(e) => setFilters((prev) => ({ ...prev, brandId: e.target.value || undefined, page: 1 }))}
+        >
+          <option value="">All Brands</option>
+          {brands?.map((b) => (
+            <option key={b.id} value={b.id}>
+              {b.name}
+            </option>
+          ))}
+        </NativeSelect>
+
+        <NativeSelect
+          aria-label="Filter by filament type"
+          className="sm:w-[170px]"
+          value={filters.filamentType ?? ''}
+          onChange={(e) => setFilters((prev) => ({ ...prev, filamentType: e.target.value || undefined, page: 1 }))}
+        >
+          <option value="">All Filament Types</option>
+          {filamentTypes?.map((f) => (
+            <option key={f.id} value={f.code}>
+              {f.name}
+            </option>
+          ))}
+        </NativeSelect>
+
         <Select
           value={filters.sortBy ?? 'createdAt'}
           onValueChange={(v) => setFilters((prev) => ({ ...prev, sortBy: (v as SortBy) || 'createdAt', page: 1 }))}
@@ -120,7 +153,7 @@ export default function AdminProductsPage() {
       </div>
 
       {isLoading ? (
-        <TableSkeleton rows={5} cols={5} />
+        <TableSkeleton rows={5} cols={6} />
       ) : data && data.items.length > 0 ? (
         <>
           <div className="overflow-x-auto">
@@ -128,9 +161,10 @@ export default function AdminProductsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
+                  <TableHead>Brand</TableHead>
                   <TableHead>Price</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Materials</TableHead>
+                  <TableHead>Filament types</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
@@ -138,15 +172,16 @@ export default function AdminProductsPage() {
                 {data.items.map((product) => (
                   <TableRow key={product.id} data-testid="product-row">
                     <TableCell className="font-medium">{product.name}</TableCell>
+                    <TableCell>{product.brand?.name ?? '—'}</TableCell>
                     <TableCell>{formatCurrency(product.price, product.currency)}</TableCell>
                     <TableCell>
                       <Badge variant={product.status === 'Active' ? 'default' : 'secondary'}>{product.status}</Badge>
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
-                        {product.supportedMaterials.map((m) => (
-                          <Badge key={m} variant="outline" className="text-xs">
-                            {m}
+                        {(product.filamentTypes ?? []).map((f) => (
+                          <Badge key={f.id} variant="outline" className="text-xs">
+                            {f.name}
                           </Badge>
                         ))}
                       </div>
@@ -187,7 +222,7 @@ export default function AdminProductsPage() {
         <EmptyState
           title="No products"
           description={
-            filters.q || filters.status ? 'Nothing matches these filters' : 'Create your first product to get started'
+            filters.q || filters.status || filters.brandId || filters.filamentType ? 'Nothing matches these filters' : 'Create your first product to get started'
           }
         />
       )}

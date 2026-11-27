@@ -30,7 +30,7 @@ public class GetProductByIdTests : IntegrationTestBase
             ShortDescription = "S",
             LongDescription = "L",
             Price = 1m,
-            CategoryId = Guid.NewGuid(),
+            CategoryId = CatalogApiFactory.DefaultCategoryId,
             Currency = "EUR",
             Settings = new { },
             Size = new { }

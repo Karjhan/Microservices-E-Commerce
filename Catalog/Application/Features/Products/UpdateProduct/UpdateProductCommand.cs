@@ -16,8 +16,16 @@ public record UpdateProductCommand(
     Dimensions Size,
 
     string[]? Tags,
-    MaterialType[]? SupportedMaterials,
-    PrinterType[]? CompatiblePrinters
+    PrinterType[]? CompatiblePrinters,
+
+    // Null keeps the current category.
+    Guid? CategoryId = null,
+
+    // The brand is replaced as sent: null removes it.
+    Guid? BrandId = null,
+
+    // Null keeps the current filament types; a list replaces them.
+    Guid[]? FilamentTypeIds = null
 ) : IRequest, IAuditedRequest
 {
     string IAuditedRequest.AuditAction => "product.update";

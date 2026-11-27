@@ -23,8 +23,9 @@ public static class CreateProductEndpoint
                 request.Settings,
                 request.Size,
                 request.Tags,
-                request.SupportedMaterials,
-                request.CompatiblePrinters
+                request.CompatiblePrinters,
+                request.BrandId,
+                request.FilamentTypeIds
             );
 
             var productId = await mediator.Send(command);
@@ -50,6 +51,8 @@ public record CreateProductRequest(
     Dimensions Size,
 
     string[]? Tags = null,
-    MaterialType[]? SupportedMaterials = null,
-    PrinterType[]? CompatiblePrinters = null
+    PrinterType[]? CompatiblePrinters = null,
+
+    Guid? BrandId = null,
+    Guid[]? FilamentTypeIds = null
 );

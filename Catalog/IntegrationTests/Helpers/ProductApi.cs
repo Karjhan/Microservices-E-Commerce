@@ -17,7 +17,7 @@ public static class ProductApi
         ShortDescription = "S",
         LongDescription = "L",
         Price = price,
-        CategoryId = Guid.NewGuid(),
+        CategoryId = CatalogApiFactory.DefaultCategoryId,
         Currency = "EUR",
         Settings = new { },
         Size = new { }

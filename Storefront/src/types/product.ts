@@ -1,5 +1,8 @@
+import type { ProductBrand, ProductFilamentType } from './reference-data';
+
 export type ProductStatus = 'Draft' | 'Active' | 'Inactive' | 'OutOfStock' | 'Discontinued';
-export type Material = 'PLA' | 'ABS' | 'PETG' | 'Resin' | 'Nylon' | 'TPU';
+/** A filament type code. Admins can add new ones, so this is no longer a fixed list. */
+export type Material = string;
 export type PrinterType = 'FDM' | 'SLA' | 'SLS';
 
 export interface ProductImage {
@@ -62,6 +65,9 @@ export interface Product {
   currency: string;
   status: ProductStatus;
   categoryId: string;
+  categoryName: string | null;
+  brand: ProductBrand | null;
+  filamentTypes: ProductFilamentType[];
   settings: PrintSettings;
   size: ProductSize;
   tags: string[];
@@ -85,6 +91,8 @@ export interface ProductListItem {
   price: number;
   currency: string;
   status: ProductStatus;
+  brand?: ProductBrand | null;
+  filamentTypes?: ProductFilamentType[];
   supportedMaterials: Material[];
   compatiblePrinters: PrinterType[];
   images: ProductImage[];

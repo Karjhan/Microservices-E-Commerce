@@ -237,23 +237,15 @@ Types live in `src/types/*.ts`. Note that the frontend types are hand-written; t
 
 **Auth** (`types/user.ts`)
 
-`POST /auth/register`, `/auth/login`, `/auth/google` responses (`AuthResponse`):
+`POST /auth/login`, `/auth/google` and `/auth/refresh` responses (`AuthTokens`):
 
 ```json
-{
-  "user": {
-    "id": "uuid",
-    "email": "user@example.com",
-    "role": "Customer",
-    "provider": "Internal",
-    "createdAt": "2025-01-01T12:00:00Z"
-  },
-  "tokens": { "accessToken": "jwt", "refreshToken": "opaque-or-jwt", "expiresIn": 900 }
-}
+{ "accessToken": "jwt", "refreshToken": "opaque" }
 ```
 
-- `role`: `Admin | Customer | Manager | Support`; `provider`: `Internal | Google`; `expiresIn` is in seconds.
-- Requests: register/login send `{ "email", "password" }`; Google sends `{ "idToken" }`; refresh sends `{ "refreshToken" }` and expects `{ accessToken, refreshToken, expiresIn }` (no `user`).
+- There is no `user` object and no `expiresIn`. `src/lib/auth.ts` reads the user from the access token claims: `sub` (user id), `email`, the role claim (`http://schemas.microsoft.com/ws/2008/06/identity/claims/role`, normalized to `Admin | Customer`) and `exp` (expiry).
+- `POST /auth/register` returns only the new user id (a JSON string); the register page then signs in with the same credentials.
+- Requests: register/login send `{ "email", "password" }`; Google sends `{ "idToken" }`; refresh sends `{ "refreshToken" }`.
 - Error shape on auth failures is read as `{ "error": "message" }`.
 
 **Product** (`types/product.ts`)

@@ -28,7 +28,7 @@ public class ExceptionMiddleware
         }
         catch (ConflictException ex)
         {
-            await WriteProblem(context, ex, HttpStatusCode.Conflict);
+            await WriteProblem(context, ex, HttpStatusCode.Conflict, ex.Errors);
         }
         catch (BusinessRuleException ex)
         {
@@ -98,7 +98,8 @@ public class ExceptionMiddleware
             code = ex.Code,
             detail = ex.Message,
             error = ex.Message,
-            errors
+            errors,
+            details = ex.Details.Count > 0 ? ex.Details : null
         }, options: null, contentType: "application/problem+json");
     }
 

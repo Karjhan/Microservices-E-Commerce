@@ -24,8 +24,10 @@ public static class UpdateProductEndpoint
                 request.Settings,
                 request.Size,
                 request.Tags,
-                request.SupportedMaterials,
-                request.CompatiblePrinters
+                request.CompatiblePrinters,
+                request.CategoryId,
+                request.BrandId,
+                request.FilamentTypeIds
             );
 
             await mediator.Send(command);
@@ -50,6 +52,14 @@ public record UpdateProductRequest(
     Dimensions Size,
 
     string[]? Tags = null,
-    MaterialType[]? SupportedMaterials = null,
-    PrinterType[]? CompatiblePrinters = null
+    PrinterType[]? CompatiblePrinters = null,
+
+    // Null keeps the current category.
+    Guid? CategoryId = null,
+
+    // Sent as is: null removes the brand.
+    Guid? BrandId = null,
+
+    // Null keeps the current filament types; a list replaces them.
+    Guid[]? FilamentTypeIds = null
 );

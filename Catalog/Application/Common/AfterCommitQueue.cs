@@ -48,6 +48,19 @@ public class ProductCacheInvalidator(ICacheService cache, IAfterCommit afterComm
         afterCommit.Register(ct => RemoveAsync(productId, ct));
     }
 
+    public async Task InvalidateAllAsync()
+    {
+        await RemoveAllAsync(CancellationToken.None);
+
+        afterCommit.Register(RemoveAllAsync);
+    }
+
+    private async Task RemoveAllAsync(CancellationToken _)
+    {
+        await cache.RemoveByPrefixAsync("product:");
+        await cache.RemoveByPrefixAsync("products:");
+    }
+
     private async Task RemoveAsync(Guid? productId, CancellationToken _)
     {
         if (productId.HasValue)

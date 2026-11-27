@@ -22,7 +22,9 @@ export interface ProductFilters {
   minPrice?: number;
   maxPrice?: number;
   tags?: string[];
-  material?: string;
+  brandId?: string;
+  /** Filament type code, for example PLA. */
+  filamentType?: string;
   printerType?: string;
   search?: string;
   status?: string;
@@ -54,6 +56,8 @@ export interface AdminProductFilters {
   q?: string;
   status?: string;
   categoryId?: string;
+  brandId?: string;
+  filamentType?: string;
   sortBy?: 'name' | 'price' | 'createdAt' | 'status';
   sortDir?: 'asc' | 'desc';
   page?: number;

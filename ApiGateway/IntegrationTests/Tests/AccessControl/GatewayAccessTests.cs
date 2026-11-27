@@ -87,7 +87,24 @@ public class GatewayAccessTests : IAsyncLifetime
         ["PUT", "/products/11111111-1111-1111-1111-111111111111/model"],
         ["DELETE", "/products/11111111-1111-1111-1111-111111111111/model"],
         ["GET", "/products/admin/audit"],
-        ["GET", "/auth/admin/audit"]
+        ["GET", "/auth/admin/audit"],
+        ["POST", "/brands"],
+        ["PUT", "/brands/11111111-1111-1111-1111-111111111111"],
+        ["POST", "/brands/11111111-1111-1111-1111-111111111111/activate"],
+        ["POST", "/brands/11111111-1111-1111-1111-111111111111/deactivate"],
+        ["DELETE", "/brands/11111111-1111-1111-1111-111111111111"],
+        ["POST", "/filament-types"],
+        ["PUT", "/filament-types/11111111-1111-1111-1111-111111111111"],
+        ["POST", "/filament-types/11111111-1111-1111-1111-111111111111/activate"],
+        ["POST", "/filament-types/11111111-1111-1111-1111-111111111111/deactivate"],
+        ["DELETE", "/filament-types/11111111-1111-1111-1111-111111111111"],
+        ["POST", "/categories"],
+        ["PUT", "/categories/11111111-1111-1111-1111-111111111111"],
+        ["POST", "/categories/11111111-1111-1111-1111-111111111111/activate"],
+        ["POST", "/categories/11111111-1111-1111-1111-111111111111/deactivate"],
+        ["DELETE", "/categories/11111111-1111-1111-1111-111111111111"],
+        ["PUT", "/brands/11111111-1111-1111-1111-111111111111/logo"],
+        ["DELETE", "/brands/11111111-1111-1111-1111-111111111111/logo"]
     ];
 
     public static IEnumerable<object[]> PublicRequests() =>
@@ -95,6 +112,9 @@ public class GatewayAccessTests : IAsyncLifetime
         ["GET", "/products"],
         ["GET", "/products/11111111-1111-1111-1111-111111111111"],
         ["GET", "/products/11111111-1111-1111-1111-111111111111/model"],
+        ["GET", "/brands"],
+        ["GET", "/filament-types"],
+        ["GET", "/categories"],
         ["GET", "/inventory/11111111-1111-1111-1111-111111111111"],
         ["POST", "/orders"],
         ["POST", "/auth/login"]

@@ -10,7 +10,6 @@ public enum AdminProductSort
     Status
 }
 
-/// <summary>Filters, sorting and paging for the admin product list (FR-020).</summary>
 public class AdminProductFilter
 {
     public const int MaxPageSize = 100;
@@ -18,8 +17,10 @@ public class AdminProductFilter
     public string? Search { get; init; }
     public ProductStatus? Status { get; init; }
     public Guid? CategoryId { get; init; }
+    public Guid? BrandId { get; init; }
 
-    /// <summary>Restricts the list to these products (used to compose the low-stock filter with Inventory).</summary>
+    public string? FilamentType { get; init; }
+
     public IReadOnlyList<Guid>? ProductIds { get; init; }
 
     public AdminProductSort SortBy { get; init; } = AdminProductSort.CreatedAt;

@@ -48,6 +48,26 @@ CATEGORY_IDS = {
     "accessories": "a6000000-0000-0000-0000-000000000006",
 }
 
+# Names the categories get (an admin can rename them later).
+CATEGORY_NAMES = {
+    CATEGORY_IDS["figurines"]: "Figurines",
+    CATEGORY_IDS["functional"]: "Functional Prints",
+    CATEGORY_IDS["mechanical"]: "Mechanical Parts",
+    CATEGORY_IDS["home_garden"]: "Home & Garden",
+    CATEGORY_IDS["decor"]: "Decor",
+    CATEGORY_IDS["accessories"]: "Accessories",
+}
+
+# Fictional brands, one per group of categories.
+BRAND_BY_CATEGORY = {
+    CATEGORY_IDS["figurines"]: "Forge3D",
+    CATEGORY_IDS["decor"]: "Forge3D",
+    CATEGORY_IDS["functional"]: "LayerLab",
+    CATEGORY_IDS["mechanical"]: "LayerLab",
+    CATEGORY_IDS["home_garden"]: "GreenPrint",
+    CATEGORY_IDS["accessories"]: "GreenPrint",
+}
+
 # ── Users ────────────────────────────────────────────────────────────────────
 
 USERS = [
@@ -405,6 +425,15 @@ class AuthSession:
 
 
 @dataclass
+class ReferenceData:
+    """Ids of the categories, brands and filament types the products point at."""
+
+    categories: dict[str, str]  # seed category id -> real category id
+    brands: dict[str, str]  # brand name -> id
+    filament_types: dict[str, str]  # filament type code -> id
+
+
+@dataclass
 class SeededProduct:
     product_id: str
     name: str
@@ -522,16 +551,105 @@ async def ensure_admin(
     print(f"  ✓ Admin ready: {email} → {user_id}")
     return AuthSession(user_id=user_id, email=email, access_token=token)
 
-async def create_product(
-    client: httpx.AsyncClient, gateway: str, product: dict[str, Any], admin: AuthSession
+async def list_reference(
+    client: httpx.AsyncClient, gateway: str, resource: str, admin: AuthSession
+) -> list[dict[str, Any]]:
+    resp = await client.get(
+        f"{gateway}/{resource}", params={"includeInactive": "true"}, headers=auth_headers(admin)
+    )
+    resp.raise_for_status()
+    return resp.json()
+
+
+async def create_reference(
+    client: httpx.AsyncClient, gateway: str, resource: str, body: dict[str, Any], admin: AuthSession
 ) -> str:
-    payload = {k: v for k, v in product.items() if k not in ("attributes", "stock")}
+    resp = await client.post(f"{gateway}/{resource}", json=body, headers=auth_headers(admin))
+    if resp.status_code not in (200, 201):
+        raise RuntimeError(f"Create {resource} '{body['name']}' failed: {resp.status_code} {resp.text}")
+    return resp.json()["id"]
+
+
+async def ensure_reference_data(
+    client: httpx.AsyncClient, gateway: str, admin: AuthSession
+) -> ReferenceData:
+    """Finds or creates the categories, brands and filament types the seed products use. Safe to re-run."""
+    # Categories. A store that had products before categories became a managed list got one "Uncategorized"
+    # category per old category id, keeping that id. Those are renamed here instead of duplicated.
+    existing = await list_reference(client, gateway, "categories", admin)
+    by_id = {c["id"].lower(): c for c in existing}
+    by_name = {c["name"].lower(): c for c in existing}
+    categories: dict[str, str] = {}
+
+    for seed_id, name in CATEGORY_NAMES.items():
+        if name.lower() in by_name:
+            categories[seed_id] = by_name[name.lower()]["id"]
+        elif seed_id.lower() in by_id:
+            resp = await client.put(
+                f"{gateway}/categories/{seed_id}", json={"name": name}, headers=auth_headers(admin)
+            )
+            if resp.status_code != 204:
+                raise RuntimeError(f"Rename category {seed_id} failed: {resp.status_code} {resp.text}")
+            categories[seed_id] = seed_id
+        else:
+            categories[seed_id] = await create_reference(client, gateway, "categories", {"name": name}, admin)
+        print(f"  ✓ Category '{name}' → {categories[seed_id]}")
+
+    # Brands
+    existing = await list_reference(client, gateway, "brands", admin)
+    brands = {b["name"].lower(): b["id"] for b in existing}
+    for name in sorted(set(BRAND_BY_CATEGORY.values())):
+        if name.lower() not in brands:
+            brands[name.lower()] = await create_reference(client, gateway, "brands", {"name": name}, admin)
+        print(f"  ✓ Brand '{name}' → {brands[name.lower()]}")
+
+    # Filament types, coded with the material names the products list
+    existing = await list_reference(client, gateway, "filament-types", admin)
+    filaments = {f["code"].lower(): f["id"] for f in existing}
+    codes = sorted({m for p in PRODUCTS for m in p["supportedMaterials"]})
+    for code in codes:
+        if code.lower() not in filaments:
+            body = {"name": code, "code": code, "diameterMm": None if code == "Resin" else 1.75}
+            filaments[code.lower()] = await create_reference(client, gateway, "filament-types", body, admin)
+        print(f"  ✓ Filament type '{code}' → {filaments[code.lower()]}")
+
+    return ReferenceData(categories=categories, brands=brands, filament_types=filaments)
+
+
+def product_payload(product: dict[str, Any], ref: ReferenceData) -> dict[str, Any]:
+    """The request body for a seed product, with its category, brand and filament types resolved to ids."""
+    payload = {
+        k: v for k, v in product.items() if k not in ("attributes", "stock", "supportedMaterials", "categoryId")
+    }
+    payload["categoryId"] = ref.categories[product["categoryId"]]
+    payload["brandId"] = ref.brands[BRAND_BY_CATEGORY[product["categoryId"]].lower()]
+    payload["filamentTypeIds"] = [ref.filament_types[m.lower()] for m in product["supportedMaterials"]]
+    return payload
+
+
+async def create_product(
+    client: httpx.AsyncClient,
+    gateway: str,
+    product: dict[str, Any],
+    admin: AuthSession,
+    ref: ReferenceData,
+) -> str:
+    payload = product_payload(product, ref)
     resp = await client.post(f"{gateway}/products", json=payload, headers=auth_headers(admin))
     if resp.status_code == 400 and "already exists" in resp.text:
         # Product names are unique, so a re-run finds the product from the previous run.
         existing = await find_product(client, gateway, product["name"], admin)
         if existing is not None:
-            print(f"  = Product '{product['name']}' already exists → {existing['id']}")
+            if existing.get("brand") is None:
+                # Made before brands existed: bring it up to date with the seed's classification.
+                update = await client.put(
+                    f"{gateway}/products/{existing['id']}", json=payload, headers=auth_headers(admin)
+                )
+                if update.status_code != 204:
+                    raise RuntimeError(f"Update '{product['name']}' failed: {update.status_code} {update.text}")
+                print(f"  ~ Product '{product['name']}' exists; brand and category set → {existing['id']}")
+            else:
+                print(f"  = Product '{product['name']}' already exists → {existing['id']}")
             return existing["id"]
     if resp.status_code not in (200, 201):
         raise RuntimeError(f"Create product '{product['name']}' failed: {resp.status_code} {resp.text}")
@@ -703,9 +821,12 @@ async def seed(
         admin = await ensure_admin(client, gateway_url, admin_email, admin_password, pg_container, pg_user, pg_db)
 
         # ── 2. Products ──────────────────────────────────────────────────
-        print("\n── 2. Catalog products (20) ────────────────────────────────")
+        print("\n── 2. Categories, brands and filament types ────────────────")
+        reference = await ensure_reference_data(client, gateway_url, admin)
+
+        print("\n── 3. Catalog products (20) ────────────────────────────────")
         for product in PRODUCTS:
-            product_id = await create_product(client, gateway_url, product, admin)
+            product_id = await create_product(client, gateway_url, product, admin, reference)
             image_url = await upload_placeholder_image(client, gateway_url, product_id, product["name"], admin)
             await publish_product(client, gateway_url, product_id, product["name"], admin)
             created[product["name"]] = SeededProduct(
@@ -717,7 +838,7 @@ async def seed(
             )
 
         # ── 3. Attributes ──────────────────────────────────────────────
-        print("\n── 3. Product attributes ───────────────────────────────────")
+        print("\n── 4. Product attributes ───────────────────────────────────")
         for product in PRODUCTS:
             seeded = created[product["name"]]
             for key, value in product.get("attributes", []):
@@ -730,7 +851,7 @@ async def seed(
                     print(f"    ⚠ attr {key} on {product['name']}: {resp.status_code}")
 
         # ── 4. Relations ───────────────────────────────────────────────
-        print("\n── 4. Product relations ────────────────────────────────────")
+        print("\n── 5. Product relations ────────────────────────────────────")
         for source, target, rel_type in RELATIONS:
             src = created.get(source)
             tgt = created.get(target)
@@ -743,7 +864,7 @@ async def seed(
             )
 
         # ── 5. Inventory ───────────────────────────────────────────────
-        print("\n── 5. Inventory stock ──────────────────────────────────────")
+        print("\n── 6. Inventory stock ──────────────────────────────────────")
         for product in PRODUCTS:
             seeded = created[product["name"]]
             await adjust_inventory(client, gateway_url, seeded.product_id, product["stock"], admin)
@@ -753,7 +874,7 @@ async def seed(
         await asyncio.sleep(ASYNC_SETTLE_SECONDS)
 
         # ── 6. Orders ──────────────────────────────────────────────────
-        print("\n── 6. Orders (5) ───────────────────────────────────────────")
+        print("\n── 7. Orders (5) ───────────────────────────────────────────")
 
         def item(name: str, qty: int = 1) -> dict[str, Any]:
             p = created[name]
@@ -850,9 +971,9 @@ async def seed(
 
         # ── 7. Payments ────────────────────────────────────────────────
         if skip_payments:
-            print("\n── 7. Payments SKIPPED (--skip-payments) ───────────────────")
+            print("\n── 8. Payments SKIPPED (--skip-payments) ───────────────────")
         else:
-            print("\n── 7. Payments (5) ─────────────────────────────────────────")
+            print("\n── 8. Payments (5) ─────────────────────────────────────────")
             print("  Requires STRIPE_SECRET_KEY in docker/.env (sk_test_...)")
             for i, order in enumerate(orders, start=1):
                 token = "pm_card_visa"

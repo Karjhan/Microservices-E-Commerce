@@ -8,17 +8,20 @@ import { EmptyState } from '@/components/shared/empty-state';
 import { ErrorFallback } from '@/components/shared/error-fallback';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { NativeSelect } from '@/components/shared/native-select';
+import { useBrands } from '@/hooks/queries/use-brands';
+import { useFilamentTypes } from '@/hooks/queries/use-filament-types';
 import { Search } from 'lucide-react';
 import type { ProductFilters } from '@/lib/api/products';
 
-const MATERIALS = ['PLA', 'ABS', 'PETG', 'Resin', 'Nylon', 'TPU'];
 const PRINTER_TYPES = ['FDM', 'SLA', 'SLS'];
 
 export default function ProductsPage() {
   const [filters, setFilters] = useState<ProductFilters>({ page: 1, pageSize: 12 });
   const [searchInput, setSearchInput] = useState('');
   const { data, isLoading, isError, refetch } = useProducts(filters);
+  const { data: brands } = useBrands();
+  const { data: filamentTypes } = useFilamentTypes();
 
   const handleSearch = () => {
     setFilters((prev) => ({ ...prev, search: searchInput || undefined, page: 1 }));
@@ -48,35 +51,41 @@ export default function ProductsPage() {
         </div>
 
         <div className="flex flex-col sm:flex-row gap-4">
-        <Select
-          value={filters.material || ''}
-          onValueChange={(v) => setFilters((prev) => ({ ...prev, material: v || undefined, page: 1 }))}
-        >
-          <SelectTrigger className="w-full sm:w-[140px]">
-            <SelectValue placeholder="Material" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Materials</SelectItem>
-            {MATERIALS.map((m) => (
-              <SelectItem key={m} value={m}>{m}</SelectItem>
+          <NativeSelect
+            aria-label="Filter by brand"
+            className="sm:w-[180px]"
+            value={filters.brandId ?? ''}
+            onChange={(e) => setFilters((prev) => ({ ...prev, brandId: e.target.value || undefined, page: 1 }))}
+          >
+            <option value="">All Brands</option>
+            {brands?.map((b) => (
+              <option key={b.id} value={b.id}>{b.name}</option>
             ))}
-          </SelectContent>
-        </Select>
+          </NativeSelect>
 
-        <Select
-          value={filters.printerType || ''}
-          onValueChange={(v) => setFilters((prev) => ({ ...prev, printerType: v || undefined, page: 1 }))}
-        >
-          <SelectTrigger className="w-full sm:w-[140px]">
-            <SelectValue placeholder="Printer" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Printers</SelectItem>
-            {PRINTER_TYPES.map((p) => (
-              <SelectItem key={p} value={p}>{p}</SelectItem>
+          <NativeSelect
+            aria-label="Filter by filament type"
+            className="sm:w-[180px]"
+            value={filters.filamentType ?? ''}
+            onChange={(e) => setFilters((prev) => ({ ...prev, filamentType: e.target.value || undefined, page: 1 }))}
+          >
+            <option value="">All Filament Types</option>
+            {filamentTypes?.map((f) => (
+              <option key={f.id} value={f.code}>{f.name}</option>
             ))}
-          </SelectContent>
-        </Select>
+          </NativeSelect>
+
+          <NativeSelect
+            aria-label="Filter by printer"
+            className="sm:w-[160px]"
+            value={filters.printerType ?? ''}
+            onChange={(e) => setFilters((prev) => ({ ...prev, printerType: e.target.value || undefined, page: 1 }))}
+          >
+            <option value="">All Printers</option>
+            {PRINTER_TYPES.map((p) => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+          </NativeSelect>
         </div>
       </div>
 

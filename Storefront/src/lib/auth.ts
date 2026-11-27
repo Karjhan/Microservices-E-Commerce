@@ -9,18 +9,26 @@ function normalizeRole(role: unknown): 'Admin' | 'Customer' {
   return role === 'Admin' ? 'Admin' : 'Customer';
 }
 
-/** Reads the role from an access token issued by our own Auth service (the services still verify it). */
-function roleFromAccessToken(accessToken: string): 'Admin' | 'Customer' {
-  try {
-    const payload = JSON.parse(
-      Buffer.from(accessToken.split('.')[1], 'base64url').toString('utf8')
-    );
-    return normalizeRole(
+function claimsFromAccessToken(accessToken: string) {
+  const payload = JSON.parse(
+    Buffer.from(accessToken.split('.')[1], 'base64url').toString('utf8')
+  );
+  return {
+    id: payload.sub as string,
+    email: payload.email as string,
+    role: normalizeRole(
       payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] ?? payload.role
-    );
-  } catch {
-    return 'Customer';
-  }
+    ),
+    accessTokenExpires: (payload.exp as number) * 1000,
+  };
+}
+
+function userFromTokens(tokens: { accessToken: string; refreshToken: string }) {
+  return {
+    ...claimsFromAccessToken(tokens.accessToken),
+    accessToken: tokens.accessToken,
+    refreshToken: tokens.refreshToken,
+  };
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -33,18 +41,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
       async authorize(credentials) {
         try {
-          const result = await login(
+          const tokens = await login(
             credentials.email as string,
             credentials.password as string
           );
-          return {
-            id: result.user.id,
-            email: result.user.email,
-            role: normalizeRole(result.user.role),
-            accessToken: result.tokens.accessToken,
-            refreshToken: result.tokens.refreshToken,
-            accessTokenExpires: Date.now() + result.tokens.expiresIn * 1000,
-          } as any;
+          return userFromTokens(tokens) as any;
         } catch {
           return null;
         }
@@ -68,12 +69,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       if (account?.provider === 'google' && account.id_token) {
         try {
-          const result = await googleAuth(account.id_token);
-          token.id = result.user.id;
-          token.role = normalizeRole(result.user.role);
-          token.accessToken = result.tokens.accessToken;
-          token.refreshToken = result.tokens.refreshToken;
-          token.accessTokenExpires = Date.now() + result.tokens.expiresIn * 1000;
+          const user = userFromTokens(await googleAuth(account.id_token));
+          token.id = user.id;
+          token.role = user.role;
+          token.accessToken = user.accessToken;
+          token.refreshToken = user.refreshToken;
+          token.accessTokenExpires = user.accessTokenExpires;
         } catch {
           return token;
         }
@@ -84,12 +85,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
 
       try {
-        const refreshed = await refreshToken(token.refreshToken as string);
+        const refreshed = userFromTokens(await refreshToken(token.refreshToken as string));
         token.accessToken = refreshed.accessToken;
         token.refreshToken = refreshed.refreshToken;
-        token.accessTokenExpires = Date.now() + refreshed.expiresIn * 1000;
-        // A role change (for example an administrator being demoted) takes effect on the next refresh.
-        token.role = roleFromAccessToken(refreshed.accessToken);
+        token.accessTokenExpires = refreshed.accessTokenExpires;
+        token.role = refreshed.role;
         token.error = undefined;
       } catch {
         token.error = 'RefreshAccessTokenError';

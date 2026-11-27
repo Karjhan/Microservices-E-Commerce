@@ -17,6 +17,12 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
 
         builder.HasIndex(x => x.Slug).IsUnique();
         builder.HasIndex(x => x.CategoryId);
+
+        // A category that products use cannot be removed (FR-023).
+        builder.HasOne(x => x.Category)
+            .WithMany()
+            .HasForeignKey(x => x.CategoryId)
+            .OnDelete(DeleteBehavior.Restrict);
         builder.HasIndex(x => x.Status);
 
         builder.Property(x => x.ShortDescription).HasMaxLength(500);
@@ -53,20 +59,6 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
                     : v.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList())
             .Metadata.SetValueComparer(
                 new ValueComparer<List<string>>(
-                    (a, b) => a != null && b != null && a.SequenceEqual(b),
-                    v => v.Aggregate(0, (hash, item) => HashCode.Combine(hash, item.GetHashCode())),
-                    v => v.ToList()));
-
-        builder.Property(x => x.SupportedMaterials)
-            .HasConversion(
-                v => string.Join(',', v.Select(e => e.ToString())),
-                v => string.IsNullOrWhiteSpace(v)
-                    ? new List<MaterialType>()
-                    : v.Split(',', StringSplitOptions.RemoveEmptyEntries)
-                        .Select(x => Enum.Parse<MaterialType>(x))
-                        .ToList())
-            .Metadata.SetValueComparer(
-                new ValueComparer<List<MaterialType>>(
                     (a, b) => a != null && b != null && a.SequenceEqual(b),
                     v => v.Aggregate(0, (hash, item) => HashCode.Combine(hash, item.GetHashCode())),
                     v => v.ToList()));

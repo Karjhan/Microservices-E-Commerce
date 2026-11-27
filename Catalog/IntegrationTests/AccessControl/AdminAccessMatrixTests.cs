@@ -48,7 +48,24 @@ public class AdminAccessMatrixTests : IntegrationTestBase
         ["upload-model", "PUT", "/products/{p}/model"],
         ["delete-model", "DELETE", "/products/{p}/model"],
         ["admin-list", "GET", "/products/admin"],
-        ["audit", "GET", "/products/admin/audit"]
+        ["audit", "GET", "/products/admin/audit"],
+        ["create-brand", "POST", "/brands"],
+        ["update-brand", "PUT", "/brands/{x}"],
+        ["activate-brand", "POST", "/brands/{x}/activate"],
+        ["deactivate-brand", "POST", "/brands/{x}/deactivate"],
+        ["delete-brand", "DELETE", "/brands/{x}"],
+        ["upload-brand-logo", "PUT", "/brands/{x}/logo"],
+        ["remove-brand-logo", "DELETE", "/brands/{x}/logo"],
+        ["create-filament-type", "POST", "/filament-types"],
+        ["update-filament-type", "PUT", "/filament-types/{x}"],
+        ["activate-filament-type", "POST", "/filament-types/{x}/activate"],
+        ["deactivate-filament-type", "POST", "/filament-types/{x}/deactivate"],
+        ["delete-filament-type", "DELETE", "/filament-types/{x}"],
+        ["create-category", "POST", "/categories"],
+        ["update-category", "PUT", "/categories/{x}"],
+        ["activate-category", "POST", "/categories/{x}/activate"],
+        ["deactivate-category", "POST", "/categories/{x}/deactivate"],
+        ["delete-category", "DELETE", "/categories/{x}"]
     ];
 
     public static IEnumerable<object[]> RefusedCallers() =>
@@ -117,6 +134,9 @@ public class AdminAccessMatrixTests : IntegrationTestBase
         (await anonymous.GetAsync($"/products/{productId}")).StatusCode.Should().Be(HttpStatusCode.OK);
         (await anonymous.GetAsync($"/products/{productId}/attributes")).StatusCode.Should().Be(HttpStatusCode.OK);
         (await anonymous.GetAsync($"/products/{productId}/relations")).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await anonymous.GetAsync("/brands")).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await anonymous.GetAsync("/filament-types")).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await anonymous.GetAsync("/categories")).StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
     [Fact]
@@ -194,6 +214,15 @@ public class AdminAccessMatrixTests : IntegrationTestBase
                 file.Headers.ContentType = MediaTypeHeaderValue.Parse("image/png");
                 request.Content = new MultipartFormDataContent { { file, "file", "pixel.png" }, { new StringContent("true"), "isPrimary" } };
                 break;
+            case "create-brand" or "update-brand" or "create-filament-type" or "update-filament-type"
+                or "create-category" or "update-category":
+                request.Content = JsonBody(new { name = $"matrix-{Guid.NewGuid():N}" });
+                break;
+            case "upload-brand-logo":
+                var logo = new ByteArrayContent(TinyPng);
+                logo.Headers.ContentType = MediaTypeHeaderValue.Parse("image/png");
+                request.Content = new MultipartFormDataContent { { logo, "file", "logo.png" } };
+                break;
             case "set-status":
                 request.Content = JsonBody(new { status = "Active" });
                 break;
@@ -223,7 +252,7 @@ public class AdminAccessMatrixTests : IntegrationTestBase
         ShortDescription = "Short",
         LongDescription = "Long",
         Price = 12.5m,
-        CategoryId = Guid.NewGuid(),
+        CategoryId = CatalogApiFactory.DefaultCategoryId,
         Currency = "EUR",
         Settings = new { },
         Size = new { }

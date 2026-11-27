@@ -1,8 +1,8 @@
-import type { AuthResponse, User } from '@/types/user';
+import type { AuthTokens, User } from '@/types/user';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_GATEWAY_URL || 'http://localhost:8080';
 
-export async function register(email: string, password: string): Promise<AuthResponse> {
+export async function register(email: string, password: string): Promise<string> {
   const res = await fetch(`${API_BASE_URL}/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -15,7 +15,7 @@ export async function register(email: string, password: string): Promise<AuthRes
   return res.json();
 }
 
-export async function login(email: string, password: string): Promise<AuthResponse> {
+export async function login(email: string, password: string): Promise<AuthTokens> {
   const res = await fetch(`${API_BASE_URL}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -28,7 +28,7 @@ export async function login(email: string, password: string): Promise<AuthRespon
   return res.json();
 }
 
-export async function googleAuth(idToken: string): Promise<AuthResponse> {
+export async function googleAuth(idToken: string): Promise<AuthTokens> {
   const res = await fetch(`${API_BASE_URL}/auth/google`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -41,7 +41,7 @@ export async function googleAuth(idToken: string): Promise<AuthResponse> {
   return res.json();
 }
 
-export async function refreshToken(refreshTokenValue: string): Promise<{ accessToken: string; refreshToken: string; expiresIn: number }> {
+export async function refreshToken(refreshTokenValue: string): Promise<AuthTokens> {
   const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

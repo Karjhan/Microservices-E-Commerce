@@ -19,6 +19,9 @@ export const routes = {
   adminOrders: '/admin/orders',
   adminOrderDetail: (id: string) => `/admin/orders/${id}`,
   adminPayments: '/admin/payments',
+  adminBrands: '/admin/brands',
+  adminFilamentTypes: '/admin/filament-types',
+  adminCategories: '/admin/categories',
 } as const;
 
 export const queryKeys = {
@@ -30,6 +33,11 @@ export const queryKeys = {
     detail: (idOrSlug: string) => [...queryKeys.products.details(), idOrSlug] as const,
     admin: (filters: object) => [...queryKeys.products.all, 'admin', filters] as const,
     model: (id: string) => [...queryKeys.products.all, 'model', id] as const,
+  },
+  referenceData: {
+    all: ['reference-data'] as const,
+    list: (resource: string, includeInactive: boolean) =>
+      [...queryKeys.referenceData.all, resource, { includeInactive }] as const,
   },
   orders: {
     all: ['orders'] as const,

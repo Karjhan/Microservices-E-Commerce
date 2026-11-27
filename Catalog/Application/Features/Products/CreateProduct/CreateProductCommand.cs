@@ -16,8 +16,10 @@ public record CreateProductCommand(
     Dimensions Size,
 
     string[]? Tags,
-    MaterialType[]? SupportedMaterials,
-    PrinterType[]? CompatiblePrinters
+    PrinterType[]? CompatiblePrinters,
+
+    Guid? BrandId = null,
+    Guid[]? FilamentTypeIds = null
 ) : IRequest<Guid>, IAuditedRequest
 {
     string IAuditedRequest.AuditAction => "product.create";

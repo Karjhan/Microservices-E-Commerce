@@ -13,7 +13,8 @@ public class OrphanedObjectSweepJob(
     public static readonly TimeSpan Interval = TimeSpan.FromHours(1);
     public static readonly TimeSpan GracePeriod = TimeSpan.FromHours(1);
 
-    public const string ImagePrefix = "products/";
+    /// <summary>Product images and brand logos share the images bucket; both are swept.</summary>
+    public static readonly string[] ImagePrefixes = ["products/", "brands/"];
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -58,7 +59,7 @@ public class OrphanedObjectSweepJob(
 
         foreach (var item in await storage.ListObjectsAsync(StorageBucket.Images, ct))
         {
-            if (item.Key.StartsWith(ImagePrefix, StringComparison.Ordinal)
+            if (ImagePrefixes.Any(prefix => item.Key.StartsWith(prefix, StringComparison.Ordinal))
                 && item.LastModifiedUtc < cutoff
                 && !imageKeys.Contains(item.Key))
             {
